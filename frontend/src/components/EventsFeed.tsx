@@ -1,34 +1,29 @@
 import React from 'react';
 import type { MarketEvent } from '../types';
-import { Globe, Scale, Droplets, Zap } from 'lucide-react';
+import { COLORS } from '../theme';
+import { Card, SectionTitle } from './UIAtoms';
 
 export const EventsFeed: React.FC<{ events: MarketEvent[] }> = ({ events }) => {
-  const getIcon = (title: string) => {
-    const t = title.toLowerCase();
-    if (t.includes('court') || t.includes('legal')) return <Scale className="text-purple-400" size={20} />;
-    if (t.includes('oil') || t.includes('energy')) return <Droplets className="text-amber-400" size={20} />;
-    if (t.includes('supply')) return <Zap className="text-yellow-400" size={20} />;
-    return <Globe className="text-blue-400" size={20} />;
-  };
+  const mainEvent = events[0] || { title: "N/A", description: "No major events found.", potential_impact: "N/A" };
 
   return (
-    <div className="bg-slate-800 p-6 rounded-lg shadow-lg">
-      <h2 className="text-xl font-bold mb-6 text-purple-400">Major Market & Legal Events</h2>
-      <div className="space-y-6">
-        {events.map((e, i) => (
-          <div key={i} className="flex gap-4 p-4 bg-slate-900/40 rounded border border-slate-700 hover:border-purple-500/50 transition-colors">
-            <div className="mt-1">{getIcon(e.title)}</div>
-            <div>
-              <h3 className="font-bold text-slate-100">{e.title}</h3>
-              <p className="text-sm text-slate-400 mt-1">{e.description}</p>
-              <div className="mt-3 p-2 bg-slate-900/60 rounded border-l-2 border-purple-500">
-                <span className="text-[10px] font-bold uppercase text-purple-400 block mb-1">Potential Market Impact</span>
-                <p className="text-xs italic text-slate-300">{e.potential_impact}</p>
-              </div>
-            </div>
-          </div>
-        ))}
+    <Card>
+      <SectionTitle>Today's Legal & Market Event</SectionTitle>
+      <div style={{
+        background: `${COLORS.red}10`, border: `1px solid ${COLORS.red}33`,
+        borderRadius: 6, padding: "14px 16px", marginBottom: 12
+      }}>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: COLORS.red, marginBottom: 6, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+          ⚠ {mainEvent.title}
+        </div>
+        <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: COLORS.text, lineHeight: 1.6 }}>
+          {mainEvent.description}
+        </div>
       </div>
-    </div>
+      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: COLORS.muted, lineHeight: 1.7 }}>
+        <strong style={{ color: COLORS.orange }}>POTENTIAL IMPACT:</strong><br />
+        → {mainEvent.potential_impact}
+      </div>
+    </Card>
   );
 };

@@ -7,7 +7,9 @@ import { RiskGauge } from './components/RiskGauge';
 import { CreditPanel } from './components/CreditPanel';
 import { EventsFeed } from './components/EventsFeed';
 import { PortfolioAdvice } from './components/PortfolioAdvice';
-import { Settings, RefreshCw, Loader2, AlertTriangle } from 'lucide-react';
+import { Card, SectionTitle, MetricBig, Tag } from './components/UIAtoms';
+import { COLORS } from './theme';
+import { Settings, RefreshCw, Loader2, AlertTriangle, Shield } from 'lucide-react';
 
 const API_BASE_URL = 'http://localhost:8000';
 
@@ -73,94 +75,180 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-blue-500/30">
-      {/* Header */}
-      <header className="border-b border-slate-800 bg-slate-900/50 backdrop-blur-md sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <div className="bg-blue-600 p-2 rounded-lg">
-              <RefreshCw className={loading ? "animate-spin text-white" : "text-white"} size={20} />
-            </div>
-            <h1 className="text-xl font-black tracking-tighter uppercase italic">Macro<span className="text-blue-500">Dashboard</span></h1>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-full border border-slate-700">
-              <Settings size={14} className="text-slate-400" />
-              <select 
-                className="bg-transparent text-sm font-medium focus:outline-none cursor-pointer"
-                value={provider}
-                onChange={(e) => setProvider(e.target.value)}
-                disabled={loading}
-              >
-                <option value="Gemini" className="bg-slate-900">Gemini 2.0 Flash</option>
-                <option value="Claude" className="bg-slate-900">Claude 3.5 Sonnet</option>
-                <option value="Ollama" className="bg-slate-900">Ollama (Gemma 2)</option>
-              </select>
-            </div>
-            
-            <button 
-              onClick={fetchDashboard}
-              disabled={loading}
-              className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-1.5 rounded-full font-bold text-sm transition-all flex items-center gap-2 shadow-lg shadow-blue-500/20 active:scale-95"
-            >
-              {loading ? <Loader2 className="animate-spin" size={16} /> : <RefreshCw size={16} />}
-              {data ? 'Refresh' : 'Generate'}
-            </button>
+    <div style={{ background: COLORS.bg, minHeight: "100vh", color: COLORS.text }}>
+      <style>{`
+        @keyframes pulse-red {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+        .pulse { animation: pulse-red 2s ease-in-out infinite; }
+
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in { animation: fadeIn 0.4s ease forwards; }
+      `}</style>
+
+      {/* TOP BAR */}
+      <div style={{
+        background: COLORS.surface, borderBottom: `1px solid ${COLORS.border}`,
+        padding: "14px 32px", display: "flex", alignItems: "center", justifyContent: "space-between",
+        position: "sticky", top: 0, zIndex: 100
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <div style={{
+            fontFamily: "'Bebas Neue', sans-serif", fontSize: 22,
+            letterSpacing: "0.1em", color: COLORS.amber
+          }}>MACRO · CREDIT · RISK</div>
+          <div style={{ width: 1, height: 20, background: COLORS.border }} />
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: COLORS.muted }}>
+            {new Date().toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }).toUpperCase()}
           </div>
         </div>
-      </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-7xl">
+        <div className="flex items-center gap-4">
+          {data && (
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div className="pulse" style={{ width: 7, height: 7, borderRadius: "50%", background: data.risk.score >= 7 ? COLORS.red : COLORS.green }} />
+              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: data.risk.score >= 7 ? COLORS.red : COLORS.green, letterSpacing: "0.1em" }}>
+                {data.risk.score >= 7 ? 'HIGH SYSTEMIC STRESS' : 'STABLE MARKET REGIME'}
+              </span>
+            </div>
+          )}
+          
+          <div className="flex items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-full border border-slate-700">
+            <Settings size={14} className="text-slate-400" />
+            <select 
+              className="bg-transparent text-sm font-medium focus:outline-none cursor-pointer border-none"
+              value={provider}
+              onChange={(e) => setProvider(e.target.value)}
+              disabled={loading}
+            >
+              <option value="Ollama" className="bg-slate-900">Ollama (Gemma 2)</option>
+              <option value="Gemini" className="bg-slate-900">Gemini 2.0 Flash</option>
+              <option value="Claude" className="bg-slate-900">Claude 3.5 Sonnet</option>
+            </select>
+          </div>
+          
+          <button 
+            onClick={fetchDashboard}
+            disabled={loading}
+            style={{
+              background: COLORS.amber, color: "#000", padding: "6px 16px",
+              borderRadius: "20px", fontWeight: "bold", fontSize: "12px",
+              cursor: "pointer", border: "none", display: "flex", alignItems: "center", gap: "8px"
+            }}
+          >
+            {loading ? <Loader2 className="animate-spin" size={14} /> : <RefreshCw size={14} />}
+            {data ? 'REFRESH' : 'GENERATE'}
+          </button>
+        </div>
+      </div>
+
+      <main style={{ padding: "24px 32px", maxWidth: 1400, margin: "0 auto" }}>
         {!data && !loading && !error && (
-          <div className="flex flex-col items-center justify-center py-20 text-center opacity-70">
+          <div className="flex flex-col items-center justify-center py-40 text-center opacity-70">
             <div className="bg-slate-800 p-8 rounded-full mb-6">
               <RefreshCw size={64} className="text-slate-600" />
             </div>
-            <h2 className="text-3xl font-bold mb-2">Ready to Analyze</h2>
+            <h2 className="text-3xl font-bold mb-2">System Ready</h2>
             <p className="text-slate-400 max-w-md mx-auto">
-              Click 'Generate' to trigger the agentic web search and compile your macro-economic dashboard.
+              Initiate agentic research to compile real-time macro-economic intelligence.
             </p>
           </div>
         )}
 
         {loading && (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <Loader2 size={48} className="animate-spin text-blue-500 mb-4" />
-            <h2 className="text-xl font-bold mb-1 italic">{status}</h2>
-            <p className="text-slate-500 text-sm animate-pulse">Scanning the web for the latest data...</p>
+          <div className="flex flex-col items-center justify-center py-40 text-center fade-in">
+            <Loader2 size={48} className="animate-spin text-amber-500 mb-4" />
+            <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, letterSpacing: "0.05em" }} className="mb-1">{status}</h2>
+            <p className="text-slate-500 text-sm animate-pulse font-mono">SCANNING GLOBAL DATA SOURCES...</p>
           </div>
         )}
 
         {error && (
-          <div className="bg-red-950/30 border border-red-500/50 p-6 rounded-lg text-center my-10 max-w-2xl mx-auto">
+          <Card style={{ maxWidth: 600, margin: "40px auto", textAlign: "center", border: `1px solid ${COLORS.red}44` }}>
             <AlertTriangle className="text-red-500 mx-auto mb-4" size={48} />
-            <h2 className="text-xl font-bold text-red-200 mb-2">Analysis Failed</h2>
-            <p className="text-red-300 text-sm">{error}</p>
+            <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, color: COLORS.red }}>Analysis Failed</h2>
+            <p className="text-slate-400 text-sm mb-6 font-mono">{error}</p>
             <button 
               onClick={fetchDashboard}
-              className="mt-6 bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-full font-bold transition-all"
+              style={{ background: COLORS.red, color: "#fff", padding: "8px 24px", borderRadius: "20px", border: "none", fontWeight: "bold", cursor: "pointer" }}
             >
-              Try Again
+              RETRY SYSTEM
             </button>
-          </div>
+          </Card>
         )}
 
         {data && !loading && (
-          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <RiskGauge data={data.risk} />
-            
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+          <div className="fade-in">
+            {/* KPI STRIP */}
+            <div style={{
+              display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr auto",
+              gap: 1, background: COLORS.border, borderRadius: 8, overflow: "hidden",
+              marginBottom: 24, border: `1px solid ${COLORS.border}`
+            }}>
+              <div style={{ background: COLORS.surface, padding: "18px 24px" }}>
+                <MetricBig label="Risk Sentiment" value={data.risk.score} unit="/10" color={data.risk.score >= 7 ? COLORS.red : COLORS.amber} sub={data.risk.summary} />
+              </div>
+              <div style={{ background: COLORS.surface, padding: "18px 24px" }}>
+                <MetricBig label="Avg Mid-Cap ICR" value={data.credit.mid_cap_avg_icr.toFixed(2)} unit="x" color={data.credit.mid_cap_avg_icr < 1.5 ? COLORS.red : COLORS.green} sub={`Alert: ${data.credit.alert ? 'YES' : 'NO'}`} />
+              </div>
+              <div style={{ background: COLORS.surface, padding: "18px 24px" }}>
+                <MetricBig label="PIK Issuance" value={data.credit.pik_debt_issuance} color={COLORS.orange} sub="Deferred interest volume" />
+              </div>
+              <div style={{ background: COLORS.surface, padding: "18px 24px" }}>
+                <MetricBig label="CRE Delinquency" value={data.credit.cre_delinquency_rate} color={COLORS.red} sub="Commercial Real Estate stress" />
+              </div>
+              <div style={{
+                background: COLORS.surface, padding: "18px 24px",
+                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center"
+              }}>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: COLORS.muted, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>Systemic Risk</div>
+                <RiskGauge data={data.risk} />
+              </div>
+            </div>
+
+            {/* MAIN GRID */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: 16, marginBottom: 16 }}>
               <Calendar data={data.calendar} />
               <CreditPanel data={data.credit} />
             </div>
 
-            <EventsFeed events={data.events} />
-            
-            <PortfolioAdvice suggestions={data.portfolio_suggestions} risks={data.risk_mitigation_steps} />
-            
-            <footer className="text-center pt-8 pb-12 border-t border-slate-900 text-slate-500 text-[10px] uppercase tracking-[0.2em]">
-              Dynamic Macro Report Generated via {provider} Agent • Built with React, FastAPI & LangGraph
+            {/* BOTTOM ROW */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+              <EventsFeed events={data.events} />
+              
+              <Card>
+                <SectionTitle>Safe-Haven & Technicals</SectionTitle>
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                    <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: COLORS.amber, letterSpacing: "0.1em" }}>CONTAGION ANALYSIS</span>
+                    <Shield size={14} color={COLORS.amber} />
+                  </div>
+                  <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: COLORS.muted, lineHeight: 1.5 }}>
+                    {data.risk.contagion_analysis}
+                  </p>
+                </div>
+                <div style={{ height: 1, background: COLORS.border, margin: "14px 0" }} />
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div className="flex justify-between">
+                    <span className="text-[10px] font-mono text-slate-500 uppercase">Gold Technicals</span>
+                    <Tag color={COLORS.amber}>{data.risk.gold_technical || 'N/A'}</Tag>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[10px] font-mono text-slate-500 uppercase">USD Strength</span>
+                    <Tag color={COLORS.cyan}>{data.risk.usd_technical || 'N/A'}</Tag>
+                  </div>
+                </div>
+              </Card>
+
+              <PortfolioAdvice suggestions={data.portfolio_suggestions} risks={data.risk_mitigation_steps} />
+            </div>
+
+            <footer className="text-center pt-12 pb-12 text-slate-600 text-[9px] uppercase tracking-[0.3em] font-mono">
+              Agentic Intelligence Terminal • LangGraph Workflows • v4.0 Professional
             </footer>
           </div>
         )}

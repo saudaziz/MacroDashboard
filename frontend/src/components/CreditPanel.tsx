@@ -1,84 +1,87 @@
 import React from 'react';
 import type { CreditHealth } from '../types';
-import { AlertCircle, Landmark } from 'lucide-react';
+import { COLORS, riskColor } from '../theme';
+import { Card, SectionTitle, Tag } from './UIAtoms';
 
 export const CreditPanel: React.FC<{ data: CreditHealth }> = ({ data }) => {
+  const metrics = [
+    { label: 'PIK Debt Issuance', value: data.pik_debt_issuance, color: COLORS.amber },
+    { label: 'CRE Delinquency', value: data.cre_delinquency_rate, color: COLORS.red },
+    { label: 'Mid-Cap HY OAS', value: data.mid_cap_hy_oas, color: COLORS.orange },
+    { label: 'CP Spreads', value: data.cp_spreads, color: COLORS.orange }
+  ];
+
   return (
-    <div className="bg-slate-800 p-6 rounded-lg shadow-lg">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-bold flex items-center gap-2 text-rose-400">
-          <Landmark size={24} /> Credit & Mid-Cap Health
-        </h2>
-        {data.alert && (
-          <div className="bg-rose-500/20 text-rose-500 px-3 py-1 rounded-full text-xs font-bold border border-rose-500/50 flex items-center gap-1 animate-pulse">
-            <AlertCircle size={14} /> ICR ALERT
-          </div>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <div className="bg-slate-900/40 p-4 rounded border border-slate-700">
-          <span className="text-slate-400 text-sm">Avg Mid-Cap ICR</span>
-          <p className={`text-2xl font-mono font-bold mt-1 ${data.mid_cap_avg_icr < 1.5 ? 'text-rose-500' : 'text-emerald-400'}`}>
-            {data.mid_cap_avg_icr.toFixed(2)}x
-          </p>
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* Systemic Stress Indicators */}
+      <Card>
+        <SectionTitle>Systemic Credit Stress Indicators</SectionTitle>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          {metrics.map((m, i) => (
+            <div key={i} style={{
+              background: COLORS.bg, 
+              border: `1px solid ${m.color}33`,
+              borderLeft: `3px solid ${m.color}`,
+              borderRadius: 6, padding: "14px 16px"
+            }}>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: COLORS.muted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>{m.label}</div>
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, color: m.color, letterSpacing: "0.02em" }}>{m.value}</div>
+            </div>
+          ))}
         </div>
-        <div className="bg-slate-900/40 p-4 rounded border border-slate-700 col-span-2">
-          <div className="flex gap-4 overflow-x-auto pb-2">
-            {data.sectoral_breakdown.map((s, i) => (
-              <div key={i} className="min-w-[120px] border-r border-slate-700/50 last:border-0 pr-4">
-                <span className="text-[10px] uppercase tracking-wider text-slate-500">{s.sector}</span>
-                <p className={`text-sm font-mono mt-1 ${s.average_icr < 1.5 ? 'text-rose-400' : 'text-slate-200'}`}>
-                  {s.average_icr.toFixed(2)}x
-                </p>
+      </Card>
+
+      {/* Sector ICR Breakdown */}
+      <Card style={{ flex: 1 }}>
+        <SectionTitle>Mid-Cap ICR Sector Breakdown</SectionTitle>
+        <div style={{ marginBottom: 16 }}>
+          {data.sectoral_breakdown.map((s, i) => (
+            <div key={i} style={{ marginBottom: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: COLORS.text }}>{s.sector}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: riskColor(s.average_icr < 1.5 ? "CRITICAL" : "OK"), fontWeight: 600 }}>{s.average_icr.toFixed(2)}x</span>
+                  <Tag color={riskColor(s.average_icr < 1.5 ? "CRITICAL" : "OK")}>
+                    {s.average_icr < 1.5 ? "DISTRESSED" : "STABLE"}
+                  </Tag>
+                </div>
               </div>
-            ))}
-          </div>
+              <div style={{ height: 4, background: COLORS.ghost, borderRadius: 2, overflow: "hidden" }}>
+                <div style={{
+                  height: "100%", width: `${Math.min((s.average_icr / 3) * 100, 100)}%`,
+                  background: riskColor(s.average_icr < 1.5 ? "CRITICAL" : "OK"), borderRadius: 2,
+                  transition: "width 1s ease"
+                }} />
+              </div>
+            </div>
+          ))}
         </div>
-      </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">
-        {[
-          { label: 'PIK Debt', val: data.pik_debt_issuance },
-          { label: 'CRE Delinq.', val: data.cre_delinquency_rate },
-          { label: 'HY OAS', val: data.mid_cap_hy_oas },
-          { label: 'CP Spreads', val: data.cp_spreads },
-          { label: 'CDX (VIX-C)', val: data.vix_of_credit_cdx }
-        ].map((m, i) => (
-          <div key={i} className="bg-slate-900/30 p-2 rounded border border-slate-700/50 text-center">
-            <span className="text-[9px] text-slate-500 font-bold uppercase block">{m.label}</span>
-            <span className="text-xs font-mono text-slate-300 block mt-1">{m.val}</span>
-          </div>
-        ))}
-      </div>
-
-      <div>
-        <h3 className="text-sm font-bold text-slate-400 mb-3 uppercase tracking-widest">High-Risk Watchlist (ICR &lt; 1.2x)</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
+        <SectionTitle>High-Risk Watchlist (ICR &lt; 1.2x)</SectionTitle>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
-              <tr className="text-slate-500 border-b border-slate-700">
-                <th className="pb-2 text-left">Firm</th>
-                <th className="pb-2 text-left">Debt Load</th>
-                <th className="pb-2 text-left">ICR</th>
-                <th className="pb-2 text-left">Insider Activity</th>
-                <th className="pb-2 text-left">CDS Pricing</th>
+              <tr>
+                {["Firm", "ICR", "CDS", "Activity"].map(h => (
+                  <th key={h} style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: COLORS.muted, textAlign: "left", padding: "4px 6px", letterSpacing: "0.08em", textTransform: "uppercase", borderBottom: `1px solid ${COLORS.border}` }}>{h}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {data.watchlist.map((f, i) => (
-                <tr key={i} className="border-b border-slate-700/30">
-                  <td className="py-2 font-bold">{f.firm_name}</td>
-                  <td className="py-2 text-slate-400 font-mono">{f.debt_load}</td>
-                  <td className="py-2 text-rose-400 font-mono">{f.icr.toFixed(2)}x</td>
-                  <td className="py-2 italic text-slate-300">{f.insider_selling}</td>
-                  <td className="py-2 text-slate-400 font-mono">{f.cds_pricing}</td>
+              {data.watchlist.map((d, i) => (
+                <tr key={i} style={{ borderBottom: `1px solid ${COLORS.border}20` }}>
+                  <td style={{ padding: "8px 6px", fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: COLORS.text }}>{d.firm_name}</td>
+                  <td style={{ padding: "8px 6px" }}>
+                    <Tag color={COLORS.red}>{d.icr.toFixed(2)}x</Tag>
+                  </td>
+                  <td style={{ padding: "8px 6px", fontFamily: "'DM Mono', monospace", fontSize: 11, color: COLORS.muted }}>{d.cds_pricing}</td>
+                  <td style={{ padding: "8px 6px", fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: COLORS.muted }}>{d.insider_selling}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      </div>
+      </Card>
     </div>
   );
 };

@@ -1,44 +1,42 @@
 import React from 'react';
 import type { PortfolioAllocation } from '../types';
-import { Briefcase, Target, ShieldCheck } from 'lucide-react';
+import { COLORS } from '../theme';
+import { Card, SectionTitle, Tag } from './UIAtoms';
 
 export const PortfolioAdvice: React.FC<{ suggestions: PortfolioAllocation[], risks: string[] }> = ({ suggestions, risks }) => {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-12 mb-12">
-      <div className="bg-slate-800 p-6 rounded-lg shadow-lg border-t-4 border-emerald-500">
-        <h2 className="text-xl font-bold mb-6 flex items-center gap-2 text-emerald-400">
-          <Briefcase size={24} /> Actionable Portfolio Allocation
-        </h2>
-        <div className="space-y-4">
-          {suggestions.map((s, i) => (
-            <div key={i} className="flex justify-between items-start gap-4 p-4 bg-slate-900/40 rounded border border-slate-700">
-              <div className="flex-1">
-                <h3 className="font-bold text-slate-100">{s.asset_class}</h3>
-                <p className="text-xs text-slate-400 mt-1">{s.rationale}</p>
-              </div>
-              <div className="text-xl font-mono font-black text-emerald-400 min-w-[60px] text-right">
-                {s.percentage}
-              </div>
+    <Card style={{ border: `1px solid ${COLORS.amber}44` }}>
+      <SectionTitle>Actionable Allocation</SectionTitle>
+      {suggestions.map((s, i) => (
+        <div key={i} style={{
+          display: "flex", gap: 12, marginBottom: 14,
+          paddingBottom: 14, borderBottom: i < suggestions.length - 1 ? `1px solid ${COLORS.border}` : "none"
+        }}>
+          <div style={{ flexShrink: 0, marginTop: 2 }}>
+            <Tag color={i % 2 === 0 ? COLORS.green : COLORS.amber}>
+              {i === 0 ? "STRATEGIC" : i === 1 ? "TACTICAL" : "SCREEN"}
+            </Tag>
+          </div>
+          <div>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: i % 2 === 0 ? COLORS.green : COLORS.amber, marginBottom: 4 }}>
+              {s.asset_class} — {s.percentage}
+            </div>
+            <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: COLORS.muted, lineHeight: 1.5 }}>
+              {s.rationale}
+            </div>
+          </div>
+        </div>
+      ))}
+      {risks.length > 0 && (
+        <div style={{ marginTop: 8 }}>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: COLORS.red, textTransform: "uppercase", marginBottom: 4 }}>Risk Mitigation</div>
+          {risks.map((r, i) => (
+            <div key={i} style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: COLORS.muted, marginBottom: 2 }}>
+              → {r}
             </div>
           ))}
         </div>
-      </div>
-
-      <div className="bg-slate-800 p-6 rounded-lg shadow-lg border-t-4 border-blue-500">
-        <h2 className="text-xl font-bold mb-6 flex items-center gap-2 text-blue-400">
-          <ShieldCheck size={24} /> Risk Mitigation Steps
-        </h2>
-        <ul className="space-y-4">
-          {risks.map((r, i) => (
-            <li key={i} className="flex gap-3 items-start p-3 bg-slate-900/40 rounded border border-slate-700">
-              <div className="mt-1">
-                <Target size={18} className="text-blue-500" />
-              </div>
-              <span className="text-sm text-slate-200">{r}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
+      )}
+    </Card>
   );
 };
