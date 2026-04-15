@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+langchain
+langchain-community
+langchain-anthropic
+langchain-google-genai
+duckduckgo-search
+pydantic
+httpx
+python-dotenv
