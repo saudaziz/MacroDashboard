@@ -1,4 +1,5 @@
 import json
+import re
 from typing import List, Dict, Any, TypedDict, Annotated, AsyncGenerator
 import operator
 from langchain_community.tools import DuckDuckGoSearchRun
@@ -78,16 +79,168 @@ def analyze_node(state: AgentState) -> Dict[str, Any]:
         # For Ollama or as fallback, use the parser with very explicit instructions
         parser = PydanticOutputParser(pydantic_object=MacroDashboardResponse)
         format_instructions = parser.get_format_instructions()
-        
-        # Injecting a "Zero-Tolerance" warning for local models
-        full_prompt = system_prompt + f"\n\nJSON SCHEMA AND FORMAT INSTRUCTIONS:\n{format_instructions}\n\nREMEMBER: Return ONLY the JSON. No wrappers."
+        safe_instructions = format_instructions.replace("{", "{{").replace("}", "}}")
+        full_prompt = system_prompt + f"\n\nJSON SCHEMA AND FORMAT INSTRUCTIONS:\n{safe_instructions}\n\nREMEMBER: Return ONLY the JSON. No wrappers."
         
         prompt = ChatPromptTemplate.from_template(full_prompt)
-        chain = prompt | model | parser
-        response = chain.invoke({
-            "research_data": state["aggregated_research"]
-        })
-        return {"dashboard_data": response}
+        chain = prompt | model
+        
+        raw_response = chain.invoke({"research_data": state["aggregated_research"]})
+        content = raw_response.content if hasattr(raw_response, 'content') else str(raw_response)
+
+        try:
+            # 1. Try standard parser
+            return {"dashboard_data": parser.parse(content)}
+        except Exception as parse_err:
+            # 2. Heuristic Repair: Try to find JSON and normalize schema variations
+            try:
+                json_match = re.search(r"(\{.*\})", content, re.DOTALL)
+                if not json_match:
+                    raise parse_err
+
+                json_str = json_match.group(1)
+                data = json.loads(json_str)
+                schema_keys = ["calendar", "risk", "credit", "events", "portfolio_suggestions", "risk_mitigation_steps"]
+
+                if len(data.keys()) == 1 and list(data.keys())[0] not in schema_keys:
+                    data = list(data.values())[0]
+
+                def normalize_calendar(calendar_value: Any) -> Dict[str, Any]:
+                    normalized = {"dates": [], "rates": []}
+                    if not isinstance(calendar_value, dict):
+                        return normalized
+
+                    if isinstance(calendar_value.get("dates"), list):
+                        normalized["dates"] = [
+                            {
+                                "event": item.get("event", "N/A"),
+                                "last_date": item.get("last_date", item.get("date", "N/A")),
+                                "next_date": item.get("next_date", item.get("date", "N/A")),
+                                "consensus": item.get("consensus")
+                            }
+                            for item in calendar_value.get("dates", [])
+                            if isinstance(item, dict)
+                        ]
+
+                    if isinstance(calendar_value.get("events"), list) and not normalized["dates"]:
+                        normalized["dates"] = [
+                            {
+                                "event": item.get("event", "N/A"),
+                                "last_date": item.get("date", "N/A"),
+                                "next_date": item.get("date", "N/A"),
+                                "consensus": item.get("consensus")
+                            }
+                            for item in calendar_value.get("events", [])
+                            if isinstance(item, dict)
+                        ]
+
+                    if isinstance(calendar_value.get("rates"), list):
+                        normalized["rates"] = [
+                            {
+                                "bank": item.get("bank", "N/A"),
+                                "rate": item.get("rate", "N/A"),
+                                "guidance": item.get("guidance", "N/A")
+                            }
+                            for item in calendar_value.get("rates", [])
+                            if isinstance(item, dict)
+                        ]
+
+                    return normalized
+
+                def normalize_risk(risk_value: Any, sentiment_value: Any = None) -> Dict[str, Any]:
+                    normalized = {
+                        "score": 5,
+                        "summary": "N/A",
+                        "contagion_analysis": "N/A",
+                        "gold_technical": None,
+                        "usd_technical": None,
+                        "safe_haven_analysis": None
+                    }
+
+                    if isinstance(risk_value, dict):
+                        normalized["summary"] = risk_value.get("summary", normalized["summary"])
+                        if isinstance(risk_value.get("contagion_analysis"), str):
+                            normalized["contagion_analysis"] = risk_value["contagion_analysis"]
+                        elif isinstance(risk_value.get("key_risks"), list):
+                            normalized["contagion_analysis"] = ", ".join(str(x) for x in risk_value["key_risks"])
+                        if isinstance(risk_value.get("score"), int):
+                            normalized["score"] = risk_value["score"]
+                    if isinstance(sentiment_value, dict):
+                        normalized["summary"] = normalized["summary"] if normalized["summary"] != "N/A" else sentiment_value.get("index_overview", normalized["summary"])
+                        if isinstance(sentiment_value.get("commodity_focus"), str):
+                            normalized["safe_haven_analysis"] = sentiment_value["commodity_focus"]
+                    return normalized
+
+                def normalize_credit(credit_value: Any) -> Dict[str, Any]:
+                    fallback = {
+                        "mid_cap_avg_icr": 0,
+                        "sectoral_breakdown": [],
+                        "pik_debt_issuance": "N/A",
+                        "cre_delinquency_rate": "N/A",
+                        "mid_cap_hy_oas": "N/A",
+                        "cp_spreads": "N/A",
+                        "vix_of_credit_cdx": "N/A",
+                        "watchlist": [],
+                        "alert": False
+                    }
+                    if not isinstance(credit_value, dict):
+                        return fallback
+                    fallback.update({
+                        "mid_cap_avg_icr": credit_value.get("mid_cap_avg_icr", fallback["mid_cap_avg_icr"]),
+                        "pik_debt_issuance": credit_value.get("pik_debt_issuance", fallback["pik_debt_issuance"]),
+                        "cre_delinquency_rate": credit_value.get("cre_delinquency_rate", fallback["cre_delinquency_rate"]),
+                        "mid_cap_hy_oas": credit_value.get("mid_cap_hy_oas", fallback["mid_cap_hy_oas"]),
+                        "cp_spreads": credit_value.get("cp_spreads", fallback["cp_spreads"]),
+                        "vix_of_credit_cdx": credit_value.get("vix_of_credit_cdx", fallback["vix_of_credit_cdx"]),
+                        "watchlist": credit_value.get("watchlist", fallback["watchlist"]),
+                        "alert": credit_value.get("alert", fallback["alert"])
+                    })
+                    if isinstance(credit_value.get("sectoral_breakdown"), list):
+                        fallback["sectoral_breakdown"] = [item for item in credit_value["sectoral_breakdown"] if isinstance(item, dict)]
+                    return fallback
+
+                def normalize_list(value: Any) -> list:
+                    if isinstance(value, list):
+                        return value
+                    return []
+
+                remapped_data = {
+                    "calendar": {"dates": [], "rates": []},
+                    "risk": {"score": 5, "summary": "N/A", "contagion_analysis": "N/A"},
+                    "credit": {"mid_cap_avg_icr": 0, "sectoral_breakdown": [], "pik_debt_issuance": "N/A", "cre_delinquency_rate": "N/A", "mid_cap_hy_oas": "N/A", "cp_spreads": "N/A", "vix_of_credit_cdx": "N/A", "watchlist": [], "alert": False},
+                    "events": [],
+                    "portfolio_suggestions": [],
+                    "risk_mitigation_steps": []
+                }
+
+                for key, value in data.items():
+                    normalized_key = key.lower()
+                    if normalized_key == "calendar":
+                        remapped_data["calendar"] = normalize_calendar(value)
+                    elif normalized_key in {"risk", "macro_outlook", "outlook", "market_sentiment", "sentiment"}:
+                        if normalized_key == "market_sentiment":
+                            remapped_data["risk"] = normalize_risk(remapped_data["risk"], value)
+                        else:
+                            remapped_data["risk"] = normalize_risk(value, data.get("market_sentiment"))
+                    elif normalized_key in {"credit", "credit_health"}:
+                        remapped_data["credit"] = normalize_credit(value)
+                    elif normalized_key in {"events", "market_events", "event_list"}:
+                        remapped_data["events"] = normalize_list(value)
+                    elif normalized_key in {"portfolio_suggestions", "portfolio", "actionable_strategies", "suggestions"}:
+                        remapped_data["portfolio_suggestions"] = normalize_list(value)
+                    elif normalized_key in {"risk_mitigation_steps", "mitigation_steps", "actions", "recommendations"}:
+                        remapped_data["risk_mitigation_steps"] = normalize_list(value)
+                    elif normalized_key == "macro_outlook":
+                        remapped_data["risk"] = normalize_risk(value, data.get("market_sentiment"))
+                    elif normalized_key == "market_sentiment":
+                        remapped_data["risk"] = normalize_risk(remapped_data["risk"], value)
+
+                return {"dashboard_data": MacroDashboardResponse.model_validate(remapped_data)}
+            except Exception as repair_err:
+                print(f"Repair failed: {str(repair_err)}")
+                raise parse_err
+            
+            raise parse_err
 
 def create_agent_graph():
     """Creates the LangGraph state machine."""

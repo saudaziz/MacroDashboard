@@ -15,7 +15,7 @@ function App() {
   const [data, setData] = useState<MacroDashboardResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('Agent is researching...');
-  const [provider, setProvider] = useState('Gemini');
+  const [provider, setProvider] = useState('Ollama');
   const [error, setError] = useState<string | null>(null);
 
   const fetchDashboard = async () => {
