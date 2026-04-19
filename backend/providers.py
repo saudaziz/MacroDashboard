@@ -30,10 +30,21 @@ class GeminiProvider(LLMProvider):
         if not api_key:
             raise ValueError(
                 "Neither GOOGLE_API_KEY nor GEMINI_API_KEY is set in your environment. "
-                "Please set it using '$env:GOOGLE_API_KEY=\"your_key_here\"' in PowerShell "
-                "or export it in your shell to ensure it remains secret and is not committed to git."
+                "Please set it using '$env:GOOGLE_API_KEY=\"your_key_here\"' in PowerShell."
             )
-        return ChatGoogleGenerativeAI(model="gemini-2.0-flash", google_api_key=api_key)
+        
+        # Use a supported Gemini model by default; allow override via environment
+        model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-pro")
+        max_output_tokens = int(os.getenv("GEMINI_MAX_OUTPUT_TOKENS", "1024"))
+        
+        return ChatGoogleGenerativeAI(
+            model=model_name,
+            google_api_key=api_key,
+            max_retries=10,
+            timeout=180,
+            temperature=0.0,
+            max_output_tokens=max_output_tokens,
+        )
 
 class ClaudeProvider(LLMProvider):
     def get_model(self) -> BaseChatModel:
@@ -44,13 +55,13 @@ class ClaudeProvider(LLMProvider):
                 "Neither ANTHROPIC_API_KEY nor CLAUDE_API_KEY is set in your environment. "
                 "Please set it in your shell environment variables to keep it secure."
             )
-        return ChatAnthropic(model_name="claude-3-5-sonnet-20240620", anthropic_api_key=api_key)
+        return ChatAnthropic(model_name="claude-3-haiku-20240307", anthropic_api_key=api_key)
 
 class OllamaProvider(LLMProvider):
     def get_model(self) -> BaseChatModel:
         # Allow overriding via environment variables for remote Ollama instances
-        base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-        model_name = os.getenv("OLLAMA_MODEL", "gemma2")
+        base_url = os.getenv("OLLAMA_BASE_URL", "http://192.168.68.190:11434")
+        model_name = os.getenv("OLLAMA_MODEL", "Gemma4")
         print(f"DEBUG: Connecting to Ollama at {base_url} with model {model_name}")
         return ChatOllama(base_url=base_url, model=model_name)
 

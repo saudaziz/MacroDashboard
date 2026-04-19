@@ -45,8 +45,30 @@ pip install -r requirements.txt
 pip install -U ddgs  # Ensure latest search tools are installed
 
 # Configure environment
+cd backend
 cp .env.example .env
 # Edit .env and add your GOOGLE_API_KEY and ANTHROPIC_API_KEY
+
+#### 🔑 API Key Configuration (Windows)
+
+To avoid setting your keys every time you restart your system, choose one of these methods:
+
+**Method 1: Using the `.env` file (Recommended for Development)**
+1. In the `backend` folder, rename `.env.example` to `.env`.
+2. Open `.env` and paste your keys: `GOOGLE_API_KEY=your_key_here`.
+3. The application will automatically load these using `python-dotenv`.
+
+**Method 2: Permanent System Variables (Universal)**
+1. Search for **"Edit the system environment variables"** in the Windows Start menu.
+2. Click **Environment Variables**.
+3. Under **User variables**, click **New**.
+4. Variable name: `GOOGLE_API_KEY`, Variable value: `your_actual_key`.
+5. Restart your terminal/IDE for changes to take effect.
+
+**Method 3: PowerShell Profile (CLI Only)**
+1. Run `notepad $PROFILE` in PowerShell.
+2. Add this line to the file: `$env:GOOGLE_API_KEY="your_key_here"`.
+3. Save and restart PowerShell.
 ```
 
 ### 2. Frontend Setup
@@ -55,21 +77,36 @@ cd frontend
 npm install
 ```
 
+#### Configure API URL (Optional)
+The frontend is configured to talk to the backend at `http://localhost:8000` by default. If your backend is running on a different port, update the `API_BASE_URL` in `frontend/src/App.tsx`.
+
 ## 🏃 Running the Application
 
-1. **Start the Backend:**
-   ```bash
-   cd backend
-   python main.py
-   ```
-   *Runs at http://localhost:8000*
+To run the full application, you need to start both the backend and the frontend.
 
-2. **Start the Frontend:**
-   ```bash
-   cd frontend
-   npm run dev
-   ```
-   *Runs at http://localhost:5173*
+### 1. Start the Backend
+```bash
+cd backend
+
+# Activate virtual environment
+# Windows:
+.\venv\Scripts\activate
+# Unix/macOS:
+source venv/bin/activate
+
+# Optional: Ensure latest search tools are installed
+pip install -U ddgs
+
+python main.py
+```
+*The backend API will be available at http://localhost:8000*
+
+### 2. Start the Frontend
+```bash
+cd frontend
+npm run dev
+```
+*The dashboard will be available at http://localhost:5173*
 
 ## 🔍 Internal Workflow (LangGraph)
 The agent follows a strict state machine:

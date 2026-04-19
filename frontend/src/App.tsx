@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { 
   MacroDashboardResponse 
 } from './types';
@@ -11,7 +11,7 @@ import { Card, SectionTitle, MetricBig, Tag } from './components/UIAtoms';
 import { COLORS } from './theme';
 import { Settings, RefreshCw, Loader2, AlertTriangle, Shield } from 'lucide-react';
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = 'http://localhost:8010';
 
 function App() {
   const [data, setData] = useState<MacroDashboardResponse | null>(null);
@@ -19,18 +19,92 @@ function App() {
   const [status, setStatus] = useState('Agent is researching...');
   const [provider, setProvider] = useState('Ollama');
   const [error, setError] = useState<string | null>(null);
+  const [progressLog, setProgressLog] = useState<string[]>([]);
+  const [rawResponse, setRawResponse] = useState<string | null>(null);
+  const [requestContent, setRequestContent] = useState<string>('');
+  const [llmRequestContent, setLlmRequestContent] = useState<string | null>(null);
+  const [devStats, setDevStats] = useState<{ request_tokens?: number; response_tokens?: number; total_tokens?: number } | null>(null);
+  const [abortController, setAbortController] = useState<AbortController | null>(null);
+
+  const addProgress = (message: string) => {
+    setProgressLog((prev) => [...prev, `${new Date().toLocaleTimeString()}: ${message}`]);
+  };
+
+  useEffect(() => {
+    const loadLatestDashboard = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/latest-dashboard`);
+        if (!response.ok) return;
+        const payload = await response.json();
+        if (payload?.data) {
+          setData(payload.data);
+          setRawResponse(payload.raw_response || null);
+          setLlmRequestContent(payload.llm_request || null);
+          setDevStats(payload.token_stats || null);
+          if (payload.provider) {
+            setProvider(payload.provider);
+          }
+          setStatus('Loaded last saved dashboard.');
+          addProgress('Loaded last saved dashboard from disk.');
+        }
+      } catch (err) {
+        console.warn('No saved dashboard available on startup.', err);
+      }
+    };
+
+    loadLatestDashboard();
+  }, []);
+
+  const cancelDashboardRequest = async () => {
+    if (!abortController) {
+      return;
+    }
+
+    abortController.abort();
+    setLoading(false);
+    setStatus('Request canceled by user.');
+    setError(null);
+    setAbortController(null);
+    addProgress('User canceled the active request.');
+
+    try {
+      await fetch(`${API_BASE_URL}/api/cancel-dashboard`, {
+        method: 'POST',
+      });
+    } catch (err) {
+      console.warn('Cancel endpoint did not respond cleanly.', err);
+    }
+  };
 
   const fetchDashboard = async () => {
     setLoading(true);
     setError(null);
     setData(null);
+    setRawResponse(null);
+    setLlmRequestContent(null);
+    setDevStats(null);
+    setProgressLog([]);
     setStatus('Initializing agent...');
+    const requestPayloadJson = { provider };
+    const requestPayload = JSON.stringify(requestPayloadJson, null, 2);
+    const backendRequest = [
+      `POST ${API_BASE_URL}/api/stream-dashboard`,
+      `Headers: ${JSON.stringify({ 'Content-Type': 'application/json' }, null, 2)}`,
+      `Body: ${requestPayload}`
+    ].join('\n\n');
+    setRequestContent(backendRequest);
+    addProgress(`Request started for provider ${provider}`);
+    addProgress(`Backend request details recorded.`);
     
+    const controller = new AbortController();
+    setAbortController(controller);
+
     try {
       const response = await fetch(`${API_BASE_URL}/api/stream-dashboard`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider })
+        body: requestPayload,
+        signal: controller.signal,
       });
 
       if (!response.ok) throw new Error('Failed to connect to agent stream.');
@@ -52,10 +126,29 @@ function App() {
             const jsonStr = line.replace('data: ', '');
             try {
               const payload = JSON.parse(jsonStr);
-              if (payload.status === 'research_start' || payload.status === 'research_complete' || payload.status === 'analysis_start') {
+              if (payload.message) {
                 setStatus(payload.message);
-              } else if (payload.status === 'analysis_complete') {
+                addProgress(payload.message);
+              }
+
+              if (payload.llm_request) {
+                setLlmRequestContent(payload.llm_request);
+                addProgress('Received LLM request content.');
+              }
+
+              if (payload.token_stats) {
+                setDevStats(payload.token_stats);
+                addProgress('Received token usage stats.');
+              }
+
+              if (payload.status === 'analysis_complete') {
                 setData(payload.data);
+                if (payload.raw_response) {
+                  setRawResponse(payload.raw_response);
+                }
+                if (payload.token_stats) {
+                  setDevStats(payload.token_stats);
+                }
                 setLoading(false);
               } else if (payload.status === 'error') {
                 setError(payload.message);
@@ -69,8 +162,16 @@ function App() {
       }
     } catch (err: any) {
       console.error(err);
-      setError(err.message || 'Failed to fetch dashboard data. Make sure the backend is running.');
+      if (err.name === 'AbortError') {
+        setStatus('Request canceled by user.');
+        setError(null);
+        setRawResponse('Request canceled by user.');
+      } else {
+        setError(err.message || 'Failed to fetch dashboard data. Make sure the backend is running.');
+      }
       setLoading(false);
+    } finally {
+      setAbortController(null);
     }
   };
 
@@ -126,22 +227,21 @@ function App() {
               disabled={loading}
             >
               <option value="Ollama" className="bg-slate-900">Ollama (Gemma 2)</option>
-              <option value="Gemini" className="bg-slate-900">Gemini 2.0 Flash</option>
+              <option value="Gemini" className="bg-slate-900">Gemini 1.5 Flash</option>
               <option value="Claude" className="bg-slate-900">Claude 3.5 Sonnet</option>
             </select>
           </div>
           
           <button 
-            onClick={fetchDashboard}
-            disabled={loading}
+            onClick={loading ? cancelDashboardRequest : fetchDashboard}
             style={{
-              background: COLORS.amber, color: "#000", padding: "6px 16px",
+              background: loading ? COLORS.red : COLORS.amber, color: "#000", padding: "6px 16px",
               borderRadius: "20px", fontWeight: "bold", fontSize: "12px",
               cursor: "pointer", border: "none", display: "flex", alignItems: "center", gap: "8px"
             }}
           >
             {loading ? <Loader2 className="animate-spin" size={14} /> : <RefreshCw size={14} />}
-            {data ? 'REFRESH' : 'GENERATE'}
+            {loading ? 'STOP' : data ? 'REFRESH' : 'GENERATE'}
           </button>
         </div>
       </div>
@@ -251,6 +351,58 @@ function App() {
               Agentic Intelligence Terminal • LangGraph Workflows • v4.0 Professional
             </footer>
           </div>
+        )}
+
+        {(loading || data || error) && (
+          <details open style={{ marginTop: 24, border: `1px solid ${COLORS.border}`, borderRadius: 12, background: COLORS.surface, padding: 20 }}>
+            <summary style={{ cursor: 'pointer', fontWeight: '700', color: COLORS.amber, fontSize: 14, marginBottom: 12 }}>Process details and raw LLM response</summary>
+            <div style={{ display: 'grid', gap: 14 }}>
+              <div>
+                <div style={{ fontSize: 12, color: COLORS.muted, marginBottom: 8 }}>Progress log</div>
+                <div style={{ padding: 14, background: '#0f1722', borderRadius: 10, minHeight: 120, overflowY: 'auto', maxHeight: 240, fontFamily: 'DM Mono, monospace', fontSize: 12, color: '#cbd5e1' }}>
+                  {progressLog.length > 0 ? (
+                    progressLog.map((entry, index) => (
+                      <div key={index} style={{ marginBottom: 6 }}>{entry}</div>
+                    ))
+                  ) : (
+                    <div style={{ opacity: 0.7 }}>No progress events yet.</div>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <div style={{ fontSize: 12, color: COLORS.muted, marginBottom: 8 }}>Backend request details</div>
+                <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', padding: 14, background: '#0f1722', borderRadius: 10, minHeight: 120, overflowX: 'auto', maxHeight: 220, fontFamily: 'DM Mono, monospace', fontSize: 12, color: '#cbd5e1' }}>
+                  {requestContent || 'No request content available.'}
+                </pre>
+              </div>
+
+              <div>
+                <div style={{ fontSize: 12, color: COLORS.muted, marginBottom: 8 }}>LLM request content</div>
+                <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', padding: 14, background: '#0f1722', borderRadius: 10, minHeight: 120, overflowX: 'auto', maxHeight: 220, fontFamily: 'DM Mono, monospace', fontSize: 12, color: '#cbd5e1' }}>
+                  {llmRequestContent || 'Waiting for the LLM request to be built...'}
+                </pre>
+              </div>
+
+              <div>
+                <details style={{ border: `1px solid ${COLORS.border}`, borderRadius: 10, padding: 12, background: '#020917' }}>
+                  <summary style={{ cursor: 'pointer', fontWeight: 700, color: COLORS.amber, fontSize: 12 }}>Dev Stats</summary>
+                  <div style={{ marginTop: 10, display: 'grid', gap: 8, fontFamily: 'DM Mono, monospace', color: '#cbd5e1', fontSize: 12 }}>
+                    <div>Request tokens: {devStats?.request_tokens ?? 'N/A'}</div>
+                    <div>Response tokens: {devStats?.response_tokens ?? 'N/A'}</div>
+                    <div>Total tokens: {devStats?.total_tokens ?? 'N/A'}</div>
+                  </div>
+                </details>
+              </div>
+
+              <div>
+                <div style={{ fontSize: 12, color: COLORS.muted, marginBottom: 8 }}>Full raw response</div>
+                <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', padding: 14, background: '#0f1722', borderRadius: 10, minHeight: 160, overflowX: 'auto', maxHeight: 320, fontFamily: 'DM Mono, monospace', fontSize: 12, color: '#cbd5e1' }}>
+                  {rawResponse || 'Waiting for the LLM response to arrive...'}
+                </pre>
+              </div>
+            </div>
+          </details>
         )}
       </main>
     </div>

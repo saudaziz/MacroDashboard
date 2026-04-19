@@ -5,6 +5,7 @@ langchain-community
 langchain-anthropic
 langchain-google-genai
 langchain-ollama
+ddgs
 duckduckgo-search
 pydantic
 httpx
