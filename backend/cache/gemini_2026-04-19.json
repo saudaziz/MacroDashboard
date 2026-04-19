@@ -1,0 +1,34 @@
+{
+  "provider": "Gemini",
+  "date": "2026-04-19",
+  "timestamp": 1776639776.058172,
+  "dashboard_data": {
+    "calendar": {
+      "dates": [],
+      "rates": []
+    },
+    "risk": {
+      "score": 5,
+      "summary": "N/A",
+      "gold_technical": null,
+      "usd_technical": null,
+      "safe_haven_analysis": null,
+      "contagion_analysis": "N/A"
+    },
+    "credit": {
+      "mid_cap_avg_icr": 0.0,
+      "sectoral_breakdown": [],
+      "pik_debt_issuance": "N/A",
+      "cre_delinquency_rate": "N/A",
+      "mid_cap_hy_oas": "N/A",
+      "cp_spreads": "N/A",
+      "vix_of_credit_cdx": "N/A",
+      "watchlist": [],
+      "alert": false
+    },
+    "events": [],
+    "portfolio_suggestions": [],
+    "risk_mitigation_steps": []
+  },
+  "raw_response": "Error: Error calling model 'gemini-1.5-flash' (NOT_FOUND): 404 NOT_FOUND. {'error': {'code': 404, 'message': 'models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.', 'status': 'NOT_FOUND'}}"
+}

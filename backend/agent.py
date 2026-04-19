@@ -10,6 +10,7 @@ from datetime import datetime
 from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import PydanticOutputParser
+from langchain_core.messages import HumanMessage
 from langgraph.graph import StateGraph, END
 
 try:
@@ -18,6 +19,67 @@ try:
 except ImportError:
     from models import MacroDashboardResponse
     from providers import get_provider
+
+# --- Cache Configuration ---
+CACHE_DIR = Path(__file__).resolve().parent / "cache"
+CACHE_DIR.mkdir(exist_ok=True)
+_LATEST_CACHE_PATH = Path(__file__).resolve().parent / "latest_dashboard.json"
+
+def _get_daily_cache_path(provider_name: str) -> Path:
+    date_str = datetime.utcnow().strftime("%Y-%m-%d")
+    provider = provider_name.lower().replace(" ", "_")
+    return CACHE_DIR / f"{provider}_{date_str}.json"
+
+def _load_daily_cache(provider_name: str) -> dict | None:
+    path = _get_daily_cache_path(provider_name)
+    if not path.exists():
+        return None
+    try:
+        cached = json.loads(path.read_text(encoding="utf-8"))
+        if cached.get("date") == datetime.utcnow().strftime("%Y-%m-%d"):
+            return cached
+    except Exception as exc:
+        print(f"Failed to load daily cache {path}: {exc}")
+    return None
+
+def _save_daily_cache(provider_name: str, dashboard_data: Any, raw_response: str, llm_request: str | None = None, token_stats: dict | None = None) -> None:
+    path = _get_daily_cache_path(provider_name)
+    try:
+        payload = {
+            "provider": provider_name,
+            "date": datetime.utcnow().strftime("%Y-%m-%d"),
+            "timestamp": time.time(),
+            "dashboard_data": dashboard_data,
+            "raw_response": raw_response,
+        }
+        if llm_request is not None: payload["llm_request"] = llm_request
+        if token_stats is not None: payload["token_stats"] = token_stats
+        path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    except Exception as exc:
+        print(f"Failed to save daily cache {path}: {exc}")
+
+def _load_latest_dashboard() -> dict | None:
+    if not _LATEST_CACHE_PATH.exists():
+        return None
+    try:
+        return json.loads(_LATEST_CACHE_PATH.read_text(encoding="utf-8"))
+    except Exception as exc:
+        print(f"Failed to load latest dashboard cache {_LATEST_CACHE_PATH}: {exc}")
+        return None
+
+def _save_latest_dashboard(provider_name: str, dashboard_data: Any, raw_response: str, llm_request: str | None = None, token_stats: dict | None = None) -> None:
+    try:
+        payload = {
+            "provider": provider_name,
+            "timestamp": time.time(),
+            "dashboard_data": dashboard_data,
+            "raw_response": raw_response,
+        }
+        if llm_request is not None: payload["llm_request"] = llm_request
+        if token_stats is not None: payload["token_stats"] = token_stats
+        _LATEST_CACHE_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    except Exception as exc:
+        print(f"Failed to save latest dashboard cache {_LATEST_CACHE_PATH}: {exc}")
 
 # --- State Definition ---
 
@@ -39,8 +101,8 @@ class AgentState(TypedDict):
     dashboard_data: MacroDashboardResponse
     
     # Metadata
-    raw_responses: List[str]
-    token_stats: Dict[str, int]
+    raw_responses: Annotated[List[str], operator.add]
+    token_stats: Annotated[Dict[str, int], operator.ior]
 
 # --- Helper Functions ---
 
@@ -81,24 +143,18 @@ def _call_specialized_llm(state: AgentState, section_name: str, instruction: str
     
     research_context = ""
     if not state.get("is_cloud_provider"):
-        research_context = f"\n\nRESEARCH DATA:\n{state.get('aggregated_research', '')[:5000]}"
+        research_context = "\n\nRESEARCH DATA:\n" + (state.get('aggregated_research', '')[:5000])
 
-    prompt_text = f"""
-    You are a professional Macro-Economic Analyst specialized in {section_name}.
-    {instruction}
-    {research_context}
+    prompt_text = "You are a professional Macro-Economic Analyst specialized in " + section_name + ".\n" + \
+                  instruction + "\n" + research_context + "\n\n" + \
+                  "Return ONLY a raw JSON object. No preamble or code blocks."
     
-    Return ONLY a raw JSON object. No preamble or code blocks.
-    """
-    
-    prompt = ChatPromptTemplate.from_template(prompt_text)
-    chain = prompt | model
+    message = HumanMessage(content=prompt_text)
     
     try:
-        response = chain.invoke({})
+        response = model.invoke([message])
         content = response.content if hasattr(response, 'content') else str(response)
         
-        # Clean JSON if model includes markdown blocks
         json_match = re.search(r"(\{.*\})|(\[.*\])", content, re.DOTALL)
         if json_match:
             content = json_match.group(0)
@@ -159,32 +215,29 @@ def strategy_node(state: AgentState) -> Dict[str, Any]:
 def aggregator_node(state: AgentState) -> Dict[str, Any]:
     """Combines all partial results into the final Pydantic model."""
     combined = {
-        "calendar": state.get("calendar_data", {"dates": [], "rates": []}),
-        "risk": state.get("risk_data", {"score": 5, "summary": "N/A", "contagion_analysis": "N/A"}),
-        "credit": state.get("credit_data", {
+        "calendar": state.get("calendar_data") or {"dates": [], "rates": []},
+        "risk": state.get("risk_data") or {"score": 5, "summary": "N/A", "contagion_analysis": "N/A"},
+        "credit": state.get("credit_data") or {
             "mid_cap_avg_icr": 0, "sectoral_breakdown": [], "pik_debt_issuance": "N/A",
             "cre_delinquency_rate": "N/A", "mid_cap_hy_oas": "N/A", "cp_spreads": "N/A",
             "vix_of_credit_cdx": "N/A", "watchlist": [], "alert": False
-        }),
-        "events": state.get("events_data", []),
-        "portfolio_suggestions": state.get("suggestions_data", []),
-        "risk_mitigation_steps": state.get("mitigation_data", [])
+        },
+        "events": state.get("events_data") or [],
+        "portfolio_suggestions": state.get("suggestions_data") or [],
+        "risk_mitigation_steps": state.get("mitigation_data") or []
     }
     
-    # Ensure correct types for Pydantic
     try:
         dashboard = MacroDashboardResponse.model_validate(combined)
         return {"dashboard_data": dashboard}
     except Exception as e:
         print(f"Aggregation error: {e}")
-        # Return a safe fallback
         return {"dashboard_data": MacroDashboardResponse(**combined)}
 
 # --- Graph Creation ---
 
 def create_agent_graph():
     workflow = StateGraph(AgentState)
-    
     workflow.add_node("router", router_node)
     workflow.add_node("researcher", research_node)
     workflow.add_node("calendar", calendar_node)
@@ -194,18 +247,12 @@ def create_agent_graph():
     workflow.add_node("aggregator", aggregator_node)
     
     workflow.set_entry_point("router")
-    
     workflow.add_edge("router", "researcher")
     workflow.add_edge("researcher", "calendar")
-    workflow.add_edge("researcher", "risk")
-    workflow.add_edge("researcher", "credit")
-    workflow.add_edge("researcher", "strategy")
-    
-    workflow.add_edge("calendar", "aggregator")
-    workflow.add_edge("risk", "aggregator")
-    workflow.add_edge("credit", "aggregator")
+    workflow.add_edge("calendar", "risk")
+    workflow.add_edge("risk", "credit")
+    workflow.add_edge("credit", "strategy")
     workflow.add_edge("strategy", "aggregator")
-    
     workflow.add_edge("aggregator", END)
     
     return workflow.compile()
@@ -215,6 +262,11 @@ def create_agent_graph():
 macro_agent = create_agent_graph()
 
 def generate_macro_dashboard(provider_name: str) -> MacroDashboardResponse:
+    cached = _load_daily_cache(provider_name)
+    if cached:
+        _save_latest_dashboard(provider_name, cached["dashboard_data"], cached.get("raw_response", ""))
+        return MacroDashboardResponse.model_validate(cached["dashboard_data"])
+
     initial_state = {
         "provider_name": provider_name,
         "search_queries": [
@@ -225,12 +277,28 @@ def generate_macro_dashboard(provider_name: str) -> MacroDashboardResponse:
         ],
         "aggregated_research": "",
         "raw_responses": [],
-        "token_stats": {}
+        "token_stats": {},
+        "calendar_data": None,
+        "risk_data": None,
+        "credit_data": None,
+        "events_data": None,
+        "suggestions_data": None,
+        "mitigation_data": None
     }
     final_state = macro_agent.invoke(initial_state)
+    dashboard_json = final_state["dashboard_data"].model_dump()
+    raw_responses_joined = "\n---\n".join(final_state.get("raw_responses", []))
+    _save_daily_cache(provider_name, dashboard_json, raw_responses_joined)
+    _save_latest_dashboard(provider_name, dashboard_json, raw_responses_joined)
     return final_state["dashboard_data"]
 
 async def stream_macro_dashboard(provider_name: str) -> AsyncGenerator[str, None]:
+    daily_cached = _load_daily_cache(provider_name)
+    if daily_cached:
+        yield json.dumps({"status": "research_start", "message": "Serving from daily cache file"})
+        yield json.dumps({"status": "analysis_complete", "data": daily_cached["dashboard_data"]})
+        return
+
     initial_state = {
         "provider_name": provider_name,
         "search_queries": [
@@ -241,13 +309,21 @@ async def stream_macro_dashboard(provider_name: str) -> AsyncGenerator[str, None
         ],
         "aggregated_research": "",
         "raw_responses": [],
-        "token_stats": {}
+        "token_stats": {},
+        "calendar_data": None,
+        "risk_data": None,
+        "credit_data": None,
+        "events_data": None,
+        "suggestions_data": None,
+        "mitigation_data": None
     }
     
     yield json.dumps({"status": "research_start", "message": f"Initiating workflow for {provider_name}..."})
     
+    full_state = initial_state.copy()
     async for output in macro_agent.astream(initial_state):
         for node_name, state_update in output.items():
+            full_state.update(state_update)
             if node_name == "router":
                 is_cloud = state_update.get("is_cloud_provider")
                 msg = "Cloud model: Using internal knowledge." if is_cloud else "Local model: Initiating web research."
@@ -258,4 +334,8 @@ async def stream_macro_dashboard(provider_name: str) -> AsyncGenerator[str, None
                 yield json.dumps({"status": "analysis_progress", "message": f"Analyzed {node_name} section."})
             elif node_name == "aggregator":
                 data = state_update["dashboard_data"]
-                yield json.dumps({"status": "analysis_complete", "data": data.model_dump()})
+                dashboard_json = data.model_dump()
+                raw_responses_joined = "\n---\n".join(full_state.get("raw_responses", []))
+                _save_daily_cache(provider_name, dashboard_json, raw_responses_joined)
+                _save_latest_dashboard(provider_name, dashboard_json, raw_responses_joined)
+                yield json.dumps({"status": "analysis_complete", "data": dashboard_json})

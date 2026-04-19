@@ -226,9 +226,9 @@ function App() {
               onChange={(e) => setProvider(e.target.value)}
               disabled={loading}
             >
-              <option value="Ollama" className="bg-slate-900">Ollama (Gemma 2)</option>
+              <option value="Ollama" className="bg-slate-900">Ollama (Gemma 4)</option>
               <option value="Gemini" className="bg-slate-900">Gemini 1.5 Flash</option>
-              <option value="Claude" className="bg-slate-900">Claude 3.5 Sonnet</option>
+              <option value="Claude" className="bg-slate-900">Claude 4.6 Sonnet</option>
             </select>
           </div>
           
