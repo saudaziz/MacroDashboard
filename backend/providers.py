@@ -61,7 +61,8 @@ class OllamaProvider(LLMProvider):
     def get_model(self) -> BaseChatModel:
         # Allow overriding via environment variables for remote Ollama instances
         base_url = os.getenv("OLLAMA_BASE_URL", "http://192.168.68.190:11434")
-        model_name = os.getenv("OLLAMA_MODEL", "Gemma4")
+        model_name = os.getenv("OLLAMA_MODEL", "gemma4")
+
         print(f"DEBUG: Connecting to Ollama at {base_url} with model {model_name}")
         return ChatOllama(base_url=base_url, model=model_name)
 
