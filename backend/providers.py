@@ -55,7 +55,7 @@ class ClaudeProvider(LLMProvider):
                 "Neither ANTHROPIC_API_KEY nor CLAUDE_API_KEY is set in your environment. "
                 "Please set it in your shell environment variables to keep it secure."
             )
-        return ChatAnthropic(model_name="claude-sonnet-4-6", anthropic_api_key=api_key)
+        return ChatAnthropic(model_name="claude-3-haiku-20240307", anthropic_api_key=api_key)
 
 class OllamaProvider(LLMProvider):
     def get_model(self) -> BaseChatModel:

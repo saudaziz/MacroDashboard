@@ -3,9 +3,14 @@ import re
 import time
 import asyncio
 import operator
+import os
+from dotenv import load_dotenv
 from typing import List, Dict, Any, TypedDict, Annotated, AsyncGenerator, Optional
 from pathlib import Path
 from datetime import datetime
+
+# Load environment variables
+load_dotenv()
 
 from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_core.prompts import ChatPromptTemplate
@@ -94,7 +99,7 @@ class AgentState(TypedDict):
     risk_data: Dict[str, Any]
     credit_data: Dict[str, Any]
     events_data: List[Any]
-    suggestions_data: List[str]
+    suggestions_data: List[Any]
     mitigation_data: List[str]
     
     # Final combined output
@@ -167,9 +172,7 @@ def _call_specialized_llm(state: AgentState, section_name: str, instruction: str
 
 def calendar_node(state: AgentState) -> Dict[str, Any]:
     instruction = """
-    Extract last/next dates for CPI, PPI, JOBS, Retail Sales, FED, BOJ, BOE, and ECB.
-    Also list current G7 central bank rates and their latest guidance.
-    
+    Extract dates for CPI, PPI, JOBS, Retail Sales, FED.
     Format: {"dates": [{"event": string, "last_date": string, "next_date": string, "consensus": string}], "rates": [{"bank": string, "rate": string, "guidance": string}]}
     """
     res = _call_specialized_llm(state, "Calendar & Rates", instruction)
@@ -177,31 +180,24 @@ def calendar_node(state: AgentState) -> Dict[str, Any]:
 
 def risk_node(state: AgentState) -> Dict[str, Any]:
     instruction = """
-    Analyze current market risk sentiment and provide a score (1-10).
-    Analyze crypto-to-equity/gold contagion. 
-    If risk score >= 8, provide safe-haven analysis (Gold/USD).
-    
-    Format: {"score": int, "summary": string, "contagion_analysis": string, "gold_technical": string, "usd_technical": string}
+    Analyze market risk (1-10) and contagion.
+    Format: {"score": int, "summary": string, "gold_technical": string, "usd_technical": string, "safe_haven_analysis": string, "contagion_analysis": string}
     """
     res = _call_specialized_llm(state, "Risk Sentiment", instruction)
     return {"risk_data": res["data"], "raw_responses": [res["raw"]]}
 
 def credit_node(state: AgentState) -> Dict[str, Any]:
     instruction = """
-    Analyze Credit Health: PIK debt, CRE Delinquency, Mid-Cap HY OAS, CP Spreads, CDX.
-    Track Mid-cap ICRs (Interest Coverage Ratios).
-    
-    Format: {"mid_cap_avg_icr": float, "sectoral_breakdown": [], "pik_debt_issuance": string, "cre_delinquency_rate": string, "mid_cap_hy_oas": string, "cp_spreads": string, "vix_of_credit_cdx": string, "watchlist": [], "alert": bool}
+    Analyze Credit Health.
+    Format: {"mid_cap_avg_icr": float, "sectoral_breakdown": [{"sector": string, "average_icr": float}], "pik_debt_issuance": string, "cre_delinquency_rate": string, "mid_cap_hy_oas": string, "cp_spreads": string, "vix_of_credit_cdx": string, "watchlist": [{"firm_name": string, "debt_load": string, "icr": float, "insider_selling": string, "cds_pricing": string}], "alert": bool}
     """
     res = _call_specialized_llm(state, "Credit Health", instruction)
     return {"credit_data": res["data"], "raw_responses": [res["raw"]]}
 
 def strategy_node(state: AgentState) -> Dict[str, Any]:
     instruction = """
-    List today's major market/legal events.
-    Provide actionable portfolio allocation suggestions and risk mitigation steps.
-    
-    Format: {"events": [string], "portfolio_suggestions": [string], "risk_mitigation_steps": [string]}
+    List events and portfolio suggestions.
+    Format: {"events": [{"title": string, "description": string, "potential_impact": string}], "portfolio_suggestions": [{"asset_class": string, "percentage": string, "rationale": string}], "risk_mitigation_steps": [string]}
     """
     res = _call_specialized_llm(state, "Strategy & Events", instruction)
     data = res["data"]
@@ -232,6 +228,7 @@ def aggregator_node(state: AgentState) -> Dict[str, Any]:
         return {"dashboard_data": dashboard}
     except Exception as e:
         print(f"Aggregation error: {e}")
+        # Return a safe fallback with default values for missing/incorrect fields
         return {"dashboard_data": MacroDashboardResponse(**combined)}
 
 # --- Graph Creation ---

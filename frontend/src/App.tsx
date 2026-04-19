@@ -17,7 +17,7 @@ function App() {
   const [data, setData] = useState<MacroDashboardResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('Agent is researching...');
-  const [provider, setProvider] = useState('Ollama');
+  const [provider, setProvider] = useState('Claude');
   const [error, setError] = useState<string | null>(null);
   const [progressLog, setProgressLog] = useState<string[]>([]);
   const [rawResponse, setRawResponse] = useState<string | null>(null);

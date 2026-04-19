@@ -1,5 +1,11 @@
 import asyncio
 import json
+import os
+from dotenv import load_dotenv
+
+# Load environment variables before any other local imports
+load_dotenv()
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -36,7 +42,7 @@ def get_status():
 
 @app.get("/api/providers")
 def get_providers():
-    return ["Gemini", "Claude", "Ollama"]
+    return ["Claude", "Gemini", "Ollama"]
 
 @app.post("/api/cancel-dashboard")
 async def cancel_dashboard():
