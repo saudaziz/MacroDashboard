@@ -12,3 +12,4 @@ httpx
 python-dotenv
 langchain-nvidia-ai-endpoints
 langchain-openai
+pytest

@@ -1,6 +1,5 @@
 import asyncio
 import json
-import os
 import logging
 import traceback
 from dotenv import load_dotenv
@@ -12,17 +11,30 @@ logger = logging.getLogger("Main")
 # Load environment variables before any other local imports
 load_dotenv()
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 try:
-    from backend.agent import generate_macro_dashboard, stream_macro_dashboard, _load_latest_dashboard
+    from backend.agent import (
+        generate_macro_dashboard_async,
+        stream_macro_dashboard,
+        _load_latest_dashboard,
+    )
     from backend.models import MacroDashboardResponse
+    from backend.providers import (
+        list_supported_providers,
+        normalize_provider_name,
+        get_default_provider_name,
+    )
 except ImportError:
-    from agent import generate_macro_dashboard, stream_macro_dashboard, _load_latest_dashboard
+    from agent import (
+        generate_macro_dashboard_async,
+        stream_macro_dashboard,
+        _load_latest_dashboard,
+    )
     from models import MacroDashboardResponse
-from typing import List, AsyncGenerator
+    from providers import list_supported_providers, normalize_provider_name, get_default_provider_name
 
 app = FastAPI(title="MacroDashboard API")
 
@@ -40,7 +52,7 @@ app.add_middleware(
 )
 
 class DashboardRequest(BaseModel):
-    provider: str
+    provider: str = get_default_provider_name()
     skip_cache: bool = False
 
 @app.get("/api/status")
@@ -49,7 +61,7 @@ def get_status():
 
 @app.get("/api/providers")
 def get_providers():
-    return ["Claude", "Gemini", "Nvidia", "Bytedance", "Ollama"]
+    return list_supported_providers()
 
 @app.post("/api/cancel-dashboard")
 async def cancel_dashboard():
@@ -68,9 +80,12 @@ async def cancel_dashboard():
 async def create_dashboard(request: DashboardRequest):
     logger.info(f"POST /api/generate-dashboard received. Provider: {request.provider}, Skip Cache: {request.skip_cache}")
     try:
-        response = generate_macro_dashboard(request.provider, skip_cache=request.skip_cache)
+        provider_name = normalize_provider_name(request.provider)
+        response = await generate_macro_dashboard_async(provider_name, skip_cache=request.skip_cache)
         logger.info("Dashboard generated successfully (non-streaming).")
         return response
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Error generating dashboard: {str(e)}")
         logger.error(traceback.format_exc())
@@ -86,7 +101,7 @@ def latest_dashboard():
     return latest
 
 @app.post("/api/stream-dashboard")
-async def stream_dashboard(request: DashboardRequest):
+async def stream_dashboard(request: DashboardRequest, http_request: Request):
     logger.info(f"POST /api/stream-dashboard received. Provider: {request.provider}, Skip Cache: {request.skip_cache}")
     async def event_generator():
         global current_stream_task
@@ -95,8 +110,14 @@ async def stream_dashboard(request: DashboardRequest):
             current_stream_task = current_task
 
         try:
-            async for chunk in stream_macro_dashboard(request.provider, skip_cache=request.skip_cache):
+            provider_name = normalize_provider_name(request.provider)
+            async for chunk in stream_macro_dashboard(provider_name, skip_cache=request.skip_cache):
+                if await http_request.is_disconnected():
+                    logger.info("Client disconnected from stream.")
+                    break
                 yield f"data: {chunk}\n\n"
+        except ValueError as e:
+            yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
         except asyncio.CancelledError:
             logger.info("Streaming task was cancelled.")
         except Exception as e:
