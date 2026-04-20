@@ -11,13 +11,14 @@ import { Card, SectionTitle, MetricBig, Tag } from './components/UIAtoms';
 import { COLORS } from './theme';
 import { Settings, RefreshCw, Loader2, AlertTriangle, Shield } from 'lucide-react';
 
-const API_BASE_URL = 'http://localhost:8010';
+const API_BASE_URL = 'http://localhost:8000';
 
 function App() {
   const [data, setData] = useState<MacroDashboardResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('Agent is researching...');
-  const [provider, setProvider] = useState('Claude');
+  const [provider, setProvider] = useState('Gemini');
+  const [providers, setProviders] = useState<string[]>(['Gemini', 'Ollama', 'Claude', 'Nvidia']);
   const [error, setError] = useState<string | null>(null);
   const [progressLog, setProgressLog] = useState<string[]>([]);
   const [rawResponse, setRawResponse] = useState<string | null>(null);
@@ -31,13 +32,25 @@ function App() {
   };
 
   useEffect(() => {
+    const fetchProviders = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/providers`);
+        if (response.ok) {
+          const list = await response.json();
+          setProviders(list);
+        }
+      } catch (err) {
+        console.warn('Failed to fetch provider list.', err);
+      }
+    };
+
     const loadLatestDashboard = async () => {
       try {
         const response = await fetch(`${API_BASE_URL}/api/latest-dashboard`);
         if (!response.ok) return;
         const payload = await response.json();
-        if (payload?.data) {
-          setData(payload.data);
+        if (payload?.dashboard_data) {
+          setData(payload.dashboard_data);
           setRawResponse(payload.raw_response || null);
           setLlmRequestContent(payload.llm_request || null);
           setDevStats(payload.token_stats || null);
@@ -52,6 +65,7 @@ function App() {
       }
     };
 
+    fetchProviders();
     loadLatestDashboard();
   }, []);
 
@@ -226,9 +240,14 @@ function App() {
               onChange={(e) => setProvider(e.target.value)}
               disabled={loading}
             >
-              <option value="Ollama" className="bg-slate-900">Ollama (Gemma 4)</option>
-              <option value="Gemini" className="bg-slate-900">Gemini 1.5 Flash</option>
-              <option value="Claude" className="bg-slate-900">Claude 4.6 Sonnet</option>
+              {providers.map((p) => (
+                <option key={p} value={p} className="bg-slate-900">
+                  {p === 'Ollama' ? 'Ollama (Gemma 4)' : 
+                   p === 'Gemini' ? 'Gemini 1.5 Flash' : 
+                   p === 'Claude' ? 'Claude 4.6 Sonnet' : 
+                   p === 'Nvidia' ? 'NVIDIA (Qwen 2.5)' : p}
+                </option>
+              ))}
             </select>
           </div>
           
