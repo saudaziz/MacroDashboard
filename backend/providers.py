@@ -59,7 +59,7 @@ class ClaudeProvider(LLMProvider):
             logger.error(error_msg)
             raise ValueError(error_msg)
             
-        model_name = "claude-3-haiku-20240307"
+        model_name = os.getenv("CLAUDE_MODEL", "claude-3-haiku-20240307")
         logger.info(f"Using Claude model: {model_name}")
         return ChatAnthropic(model_name=model_name, anthropic_api_key=api_key)
 
