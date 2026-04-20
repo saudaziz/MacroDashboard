@@ -1,20 +1,52 @@
 import os
 import logging
 from abc import ABC, abstractmethod
-from typing import List, Optional, Tuple
-from langchain_anthropic import ChatAnthropic
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_ollama import ChatOllama
-from langchain_nvidia_ai_endpoints import ChatNVIDIA
-from langchain_openai import ChatOpenAI
+from typing import Optional, Tuple
 from langchain_core.language_models.chat_models import BaseChatModel
 from dotenv import load_dotenv
+
+try:
+    from langchain_anthropic import ChatAnthropic
+except ImportError:
+    ChatAnthropic = None
+
+try:
+    from langchain_google_genai import ChatGoogleGenerativeAI
+except ImportError:
+    ChatGoogleGenerativeAI = None
+
+try:
+    from langchain_ollama import ChatOllama
+except ImportError:
+    ChatOllama = None
+
+try:
+    from langchain_nvidia_ai_endpoints import ChatNVIDIA
+except ImportError:
+    ChatNVIDIA = None
+
+try:
+    from langchain_openai import ChatOpenAI
+except ImportError:
+    ChatOpenAI = None
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("Providers")
 
 load_dotenv()
+
+
+_PROVIDER_REGISTRY = {
+    "gemini": "Gemini",
+    "claude": "Claude",
+    "nvidia": "Nvidia",
+    "bytedance": "Bytedance",
+    "ollama": "Ollama",
+    "mock": "Mock",
+}
+_DEFAULT_PROVIDER = os.getenv("DEFAULT_PROVIDER", "Nvidia")
+
 
 def _get_env_var(names: list[str]) -> Tuple[Optional[str], Optional[str]]:
     for name in names:
@@ -25,6 +57,14 @@ def _get_env_var(names: list[str]) -> Tuple[Optional[str], Optional[str]]:
     return None, None
 
 
+def _require_dependency(dependency: object, package_name: str) -> None:
+    if dependency is None:
+        raise ImportError(
+            f"Missing optional dependency '{package_name}'. "
+            f"Install it with: pip install {package_name}"
+        )
+
+
 class LLMProvider(ABC):
     @abstractmethod
     def get_model(self) -> BaseChatModel:
@@ -32,6 +72,7 @@ class LLMProvider(ABC):
 
 class GeminiProvider(LLMProvider):
     def get_model(self) -> BaseChatModel:
+        _require_dependency(ChatGoogleGenerativeAI, "langchain-google-genai")
         logger.info("Initializing Gemini Provider...")
         api_key, key_name = _get_env_var(["GOOGLE_API_KEY", "GEMINI_API_KEY"])
         if not api_key:
@@ -52,6 +93,7 @@ class GeminiProvider(LLMProvider):
 
 class ClaudeProvider(LLMProvider):
     def get_model(self) -> BaseChatModel:
+        _require_dependency(ChatAnthropic, "langchain-anthropic")
         logger.info("Initializing Claude Provider...")
         api_key, key_name = _get_env_var(["ANTHROPIC_API_KEY", "CLAUDE_API_KEY"])
         if not api_key:
@@ -65,6 +107,7 @@ class ClaudeProvider(LLMProvider):
 
 class NvidiaProvider(LLMProvider):
     def get_model(self) -> BaseChatModel:
+        _require_dependency(ChatNVIDIA, "langchain-nvidia-ai-endpoints")
         logger.info("Initializing Nvidia Provider...")
         api_key, key_name = _get_env_var(["NVIDIA_API_KEY"])
         if not api_key:
@@ -85,6 +128,7 @@ class NvidiaProvider(LLMProvider):
 
 class BytedanceProvider(LLMProvider):
     def get_model(self) -> BaseChatModel:
+        _require_dependency(ChatOpenAI, "langchain-openai")
         logger.info("Initializing Bytedance Provider (via NVIDIA)...")
         api_key, key_name = _get_env_var(["BYTEDANCE_API_KEY"])
         if not api_key:
@@ -107,6 +151,7 @@ class BytedanceProvider(LLMProvider):
 
 class OllamaProvider(LLMProvider):
     def get_model(self) -> BaseChatModel:
+        _require_dependency(ChatOllama, "langchain-ollama")
         base_url = os.getenv("OLLAMA_BASE_URL", "http://192.168.68.190:11434")
         model_name = os.getenv("OLLAMA_MODEL", "gemma4")
         logger.info(f"Initializing Ollama Provider at {base_url} with model {model_name}...")
@@ -124,21 +169,47 @@ class MockProvider(LLMProvider):
             def _llm_type(self): return "mock"
         return MockModel()
 
-def get_provider(provider_name: str) -> LLMProvider:
-    logger.info(f"Fetching provider: {provider_name}")
-    pn = provider_name.lower()
-    if pn == "gemini":
+def list_supported_providers(include_mock: bool = False) -> list[str]:
+    providers = ["Nvidia", "Claude", "Gemini", "Bytedance", "Ollama"]
+    if include_mock:
+        providers.append("Mock")
+    return providers
+
+
+def get_default_provider_name() -> str:
+    default_key = (_DEFAULT_PROVIDER or "").strip().lower()
+    if default_key in _PROVIDER_REGISTRY:
+        return _PROVIDER_REGISTRY[default_key]
+    return "Nvidia"
+
+
+def normalize_provider_name(provider_name: Optional[str]) -> str:
+    candidate = (provider_name or "").strip()
+    if not candidate:
+        return get_default_provider_name()
+
+    key = candidate.lower()
+    if key not in _PROVIDER_REGISTRY:
+        valid = ", ".join(list_supported_providers(include_mock=True))
+        raise ValueError(f"Unsupported provider '{provider_name}'. Supported providers: {valid}")
+    return _PROVIDER_REGISTRY[key]
+
+
+def get_provider(provider_name: Optional[str]) -> LLMProvider:
+    canonical_name = normalize_provider_name(provider_name)
+    logger.info(f"Fetching provider: {canonical_name}")
+    provider_key = canonical_name.lower()
+
+    if provider_key == "gemini":
         return GeminiProvider()
-    elif pn == "claude":
+    if provider_key == "claude":
         return ClaudeProvider()
-    elif pn == "nvidia":
+    if provider_key == "nvidia":
         return NvidiaProvider()
-    elif pn == "bytedance":
+    if provider_key == "bytedance":
         return BytedanceProvider()
-    elif pn == "ollama":
+    if provider_key == "ollama":
         return OllamaProvider()
-    elif pn == "mock":
+    if provider_key == "mock":
         return MockProvider()
-    else:
-        logger.warning(f"Unknown provider '{provider_name}', defaulting to Ollama.")
-        return OllamaProvider()
+    raise ValueError(f"Provider registry mismatch for '{canonical_name}'.")
