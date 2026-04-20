@@ -30,22 +30,27 @@ try:
 except ImportError:
     ChatOpenAI = None
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+try:
+    from backend.logging_config import configure_logging
+except ImportError:
+    from logging_config import configure_logging
+
+configure_logging()
 logger = logging.getLogger("Providers")
 
 load_dotenv()
 
 
 _PROVIDER_REGISTRY = {
-    "gemini": "Gemini",
-    "claude": "Claude",
-    "nvidia": "Nvidia",
-    "bytedance": "Bytedance",
-    "ollama": "Ollama",
-    "mock": "Mock",
+    "gemini": "Gemini 2.0 Flash",
+    "claude": "Claude 3 Haiku",
+    "qwen": "Qwen 3.5 397B",
+    "bytedance": "Bytedance Seed",
+    "deepseek": "DeepSeek V3",
+    "ollama": "Ollama Gemma",
+    "mock": "Mock Terminal",
 }
-_DEFAULT_PROVIDER = os.getenv("DEFAULT_PROVIDER", "Nvidia")
+_DEFAULT_PROVIDER = os.getenv("DEFAULT_PROVIDER", "bytedance")
 
 
 def _get_env_var(names: list[str]) -> Tuple[Optional[str], Optional[str]]:
@@ -105,34 +110,39 @@ class ClaudeProvider(LLMProvider):
         logger.info(f"Using Claude model: {model_name}")
         return ChatAnthropic(model_name=model_name, anthropic_api_key=api_key)
 
-class NvidiaProvider(LLMProvider):
+class QwenProvider(LLMProvider):
     def get_model(self) -> BaseChatModel:
-        _require_dependency(ChatNVIDIA, "langchain-nvidia-ai-endpoints")
-        logger.info("Initializing Nvidia Provider...")
-        api_key, key_name = _get_env_var(["NVIDIA_API_KEY"])
+        _require_dependency(ChatOpenAI, "langchain-openai")
+        logger.info("Initializing Qwen Provider (via NVIDIA)...")
+        api_key, key_name = _get_env_var(["QWEN_API_KEY", "NVIDIA_API_KEY"])
         if not api_key:
-            error_msg = "NVIDIA_API_KEY is not set in your environment."
+            error_msg = "Neither QWEN_API_KEY nor NVIDIA_API_KEY is set in your environment."
             logger.error(error_msg)
             raise ValueError(error_msg)
             
-        model_name = os.getenv("NVIDIA_MODEL", "qwen/qwen2.5-coder-32b-instruct")
-        logger.info(f"Using Nvidia model: {model_name}")
+        model_name = os.getenv("QWEN_MODEL", "qwen/qwen3.5-397b-a17b")
+        logger.info(f"Using Qwen model: {model_name}")
         
-        return ChatNVIDIA(
+        return ChatOpenAI(
             model=model_name,
             api_key=api_key,
+            base_url="https://integrate.api.nvidia.com/v1",
             temperature=0.2,
             top_p=0.7,
-            max_tokens=1024,
+            max_tokens=4096,
+            model_kwargs={
+                "frequency_penalty": 0,
+                "presence_penalty": 0,
+            }
         )
 
 class BytedanceProvider(LLMProvider):
     def get_model(self) -> BaseChatModel:
         _require_dependency(ChatOpenAI, "langchain-openai")
         logger.info("Initializing Bytedance Provider (via NVIDIA)...")
-        api_key, key_name = _get_env_var(["BYTEDANCE_API_KEY"])
+        api_key, key_name = _get_env_var(["BYTEDANCE_API_KEY", "NVIDIA_API_KEY"])
         if not api_key:
-            error_msg = "BYTEDANCE_API_KEY is not set in your environment."
+            error_msg = "Neither BYTEDANCE_API_KEY nor NVIDIA_API_KEY is set in your environment."
             logger.error(error_msg)
             raise ValueError(error_msg)
             
@@ -146,7 +156,38 @@ class BytedanceProvider(LLMProvider):
             temperature=1.1,
             top_p=0.95,
             max_tokens=4096,
+            model_kwargs={
+                "frequency_penalty": 0,
+                "presence_penalty": 0,
+            },
             extra_body={"thinking_budget": -1}
+        )
+
+class DeepSeekProvider(LLMProvider):
+    def get_model(self) -> BaseChatModel:
+        _require_dependency(ChatOpenAI, "langchain-openai")
+        logger.info("Initializing DeepSeek Provider (via NVIDIA)...")
+        api_key, key_name = _get_env_var(["DEEPSEEK_API_KEY", "NVIDIA_API_KEY"])
+        if not api_key:
+            error_msg = "DEEPSEEK_API_KEY (or NVIDIA_API_KEY) is not set in your environment."
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+            
+        model_name = os.getenv("DEEPSEEK_MODEL", "deepseek-ai/deepseek-v3.2")
+        logger.info(f"Using DeepSeek model: {model_name}")
+        
+        return ChatOpenAI(
+            model=model_name,
+            api_key=api_key,
+            base_url="https://integrate.api.nvidia.com/v1",
+            temperature=1.0,
+            top_p=0.95,
+            max_tokens=8192,
+            model_kwargs={
+                "frequency_penalty": 0,
+                "presence_penalty": 0,
+            },
+            extra_body={"chat_template_kwargs": {"thinking": True}}
         )
 
 class OllamaProvider(LLMProvider):
@@ -170,9 +211,9 @@ class MockProvider(LLMProvider):
         return MockModel()
 
 def list_supported_providers(include_mock: bool = False) -> list[str]:
-    providers = ["Nvidia", "Claude", "Gemini", "Bytedance", "Ollama"]
+    providers = ["Bytedance Seed", "DeepSeek V3", "Qwen 3.5 397B", "Claude 3 Haiku", "Gemini 2.0 Flash", "Ollama Gemma"]
     if include_mock:
-        providers.append("Mock")
+        providers.append("Mock Terminal")
     return providers
 
 
@@ -180,7 +221,7 @@ def get_default_provider_name() -> str:
     default_key = (_DEFAULT_PROVIDER or "").strip().lower()
     if default_key in _PROVIDER_REGISTRY:
         return _PROVIDER_REGISTRY[default_key]
-    return "Nvidia"
+    return "Bytedance Seed"
 
 
 def normalize_provider_name(provider_name: Optional[str]) -> str:
@@ -188,26 +229,58 @@ def normalize_provider_name(provider_name: Optional[str]) -> str:
     if not candidate:
         return get_default_provider_name()
 
+    # Try exact match with registry values first
+    for val in _PROVIDER_REGISTRY.values():
+        if candidate.lower() == val.lower():
+            return val
+
+    # Try mapping from keys
     key = candidate.lower()
-    if key not in _PROVIDER_REGISTRY:
-        valid = ", ".join(list_supported_providers(include_mock=True))
-        raise ValueError(f"Unsupported provider '{provider_name}'. Supported providers: {valid}")
-    return _PROVIDER_REGISTRY[key]
+    if key in _PROVIDER_REGISTRY:
+        return _PROVIDER_REGISTRY[key]
+        
+    # Specific partial matches (avoiding broad 'nvidia' match)
+    if "qwen" in key:
+        return _PROVIDER_REGISTRY["qwen"]
+    if "gemini" in key:
+        return _PROVIDER_REGISTRY["gemini"]
+    if "claude" in key:
+        return _PROVIDER_REGISTRY["claude"]
+    if "bytedance" in key or "seed" in key:
+        return _PROVIDER_REGISTRY["bytedance"]
+    if "deepseek" in key:
+        return _PROVIDER_REGISTRY["deepseek"]
+    if "ollama" in key:
+        return _PROVIDER_REGISTRY["ollama"]
+    if "mock" in key:
+        return _PROVIDER_REGISTRY["mock"]
+    
+    # Last resort fallback for the generic 'nvidia' string
+    if "nvidia" in key:
+        return _PROVIDER_REGISTRY["qwen"]
+
+    valid = ", ".join(list_supported_providers(include_mock=True))
+    raise ValueError(f"Unsupported provider '{provider_name}'. Supported providers: {valid}")
 
 
 def get_provider(provider_name: Optional[str]) -> LLMProvider:
     canonical_name = normalize_provider_name(provider_name)
     logger.info(f"Fetching provider: {canonical_name}")
-    provider_key = canonical_name.lower()
+    
+    # Use internal keys for class mapping
+    rev_registry = {v.lower(): k for k, v in _PROVIDER_REGISTRY.items()}
+    provider_key = rev_registry.get(canonical_name.lower())
 
     if provider_key == "gemini":
         return GeminiProvider()
     if provider_key == "claude":
         return ClaudeProvider()
-    if provider_key == "nvidia":
-        return NvidiaProvider()
+    if provider_key == "qwen":
+        return QwenProvider()
     if provider_key == "bytedance":
         return BytedanceProvider()
+    if provider_key == "deepseek":
+        return DeepSeekProvider()
     if provider_key == "ollama":
         return OllamaProvider()
     if provider_key == "mock":

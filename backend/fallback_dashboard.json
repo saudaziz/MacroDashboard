@@ -1,0 +1,337 @@
+{
+  "generated_at": "2026-04-20T00:00:00Z",
+  "calendar": {
+    "dates": [
+      {
+        "event": "US CPI (YoY)",
+        "last_date": "2026-04-10",
+        "last_period": "March 2026",
+        "next_date": "2026-05-12",
+        "consensus": "3.2%",
+        "actual": "3.3%",
+        "signal": "BEAT",
+        "note": "March surge driven by gasoline +21.2% MoM. Energy index +10.9%. Core CPI +2.6% YoY. Tariff pass-through beginning to hit headline figures."
+      },
+      {
+        "event": "US PPI (YoY)",
+        "last_date": "2026-04-14",
+        "last_period": "March 2026",
+        "next_date": "2026-05-13",
+        "consensus": "3.6%",
+        "actual": "4.0%",
+        "signal": "BEAT",
+        "note": "Largest 12-month advance since Feb 2023. Final demand goods +1.6% MoM. Diesel, gasoline, jet fuel, and metals driving wholesale price surge."
+      },
+      {
+        "event": "US NFP (Non-Farm Payrolls)",
+        "last_date": "2026-04-03",
+        "last_period": "March 2026",
+        "next_date": "2026-05-08",
+        "consensus": "60K",
+        "actual": "178K",
+        "signal": "BEAT",
+        "note": "Strong rebound from Feb's revised -133K (healthcare strike). Healthcare +76K (physicians returning from strike), construction +26K, transport +21K. Federal govt -18K continues DOGE-era attrition. Unemployment unchanged at 4.3%."
+      },
+      {
+        "event": "US Retail Sales (MoM)",
+        "last_date": "2026-04-01",
+        "last_period": "February 2026",
+        "next_date": "2026-04-21",
+        "consensus": "+0.9%",
+        "actual": "+0.6%",
+        "signal": "MISS",
+        "note": "⚠️ March 2026 Retail Sales release is TOMORROW (April 21). Feb came in below consensus. Chicago Fed CARTS model projects March ex-auto +0.9% nominal but -1.1% inflation-adjusted, signaling real consumer spending contraction."
+      }
+    ],
+    "rates": [
+      {
+        "bank": "Federal Reserve (FOMC)",
+        "rate": "3.50%–3.75%",
+        "last_decision_date": "2026-03-18",
+        "last_decision": "Hold",
+        "next_date": "2026-04-29",
+        "guidance": "Hold maintained for 2nd consecutive meeting. One cut projected in 2026 per updated SEP dot plot. Powell flagged Iran war oil shock as key inflation uncertainty. Growth forecast revised to 2.4% for 2026. PCE inflation revised up to 2.7%. Fed independence under political pressure following Powell subpoena."
+      },
+      {
+        "bank": "Bank of Japan (BOJ)",
+        "rate": "0.75%",
+        "last_decision_date": "2026-03-19",
+        "last_decision": "Hold",
+        "next_date": "2026-04-28",
+        "guidance": "Hold maintained. Next meeting April 27–28. Markets watching for pivot toward 1.0% by Q3 2026. Yen repatriation risk if global sovereign yields spike. Iran conflict complicating BOJ's normalization path."
+      },
+      {
+        "bank": "Bank of England (BOE)",
+        "rate": "3.75%",
+        "last_decision_date": "2026-03-19",
+        "last_decision": "Hold — 5-4 vote",
+        "next_date": "2026-05-07",
+        "guidance": "Narrow 5-4 split signals cut is imminent. Four members voted for immediate 25 bps cut. Markets pricing ~2 cuts over remainder of 2026. Oil-driven inflation complicating disinflation path. Sterling at ~1.3400–1.3600 range."
+      },
+      {
+        "bank": "European Central Bank (ECB)",
+        "rate": "2.00%",
+        "last_decision_date": "2026-03-19",
+        "last_decision": "Hold",
+        "next_date": "2026-04-30",
+        "guidance": "Hold maintained. Updated projections show headline inflation averaging 2.6% in 2026 (vs. 2.0% prior forecast), driven by energy. GDP growth downgraded to 0.9% for 2026. Lagarde states medium-term expectations remain anchored. EUR swap rates risen to ~2.70%. UBS calling for two 25 bps hikes in 2026."
+      }
+    ],
+    "g7_rates_summary": [
+      { "country": "United States", "rate": "3.625%", "bank": "Federal Reserve" },
+      { "country": "United Kingdom", "rate": "3.75%", "bank": "Bank of England" },
+      { "country": "Euro Area", "rate": "2.00%", "bank": "ECB" },
+      { "country": "Japan", "rate": "0.75%", "bank": "Bank of Japan" },
+      { "country": "Canada", "rate": "2.25%", "bank": "Bank of Canada" },
+      { "country": "Australia", "rate": "3.85%", "bank": "Reserve Bank of Australia" },
+      { "country": "Switzerland", "rate": "0.25%", "bank": "Swiss National Bank" }
+    ]
+  },
+
+  "risk": {
+    "score": 8.0,
+    "label": "Elevated / Geopolitical + Credit Stress",
+    "summary": "Iran-US ceasefire talks and a 10-day Israel-Lebanon truce have triggered a sharp oil sell-off (-10% on April 18) and a partial safe-haven unwind, but the ceasefire is fragile and not comprehensive. Hot inflation readings (CPI 3.3%, PPI 4.0%) with an energy-shock vector keep the Fed paralyzed. Mid-cap credit stress is broadening with SaaS sector loans joining CRE in distress territory. Score held at 8.0 due to structural credit fragility despite near-term geopolitical relief.",
+    "gold_technical": "Gold at ~$4,870/oz — 4th consecutive weekly gain. Support: $4,700 / $4,580. Resistance: $5,000 / $5,200. Bullish structure intact; Iran ceasefire triggered a brief dip before recovery. Central bank accumulation (China, India, Turkey) providing structural floor. Up 41.6% YoY.",
+    "usd_technical": "DXY ~99.5. Dollar recovered from 6-week low on April 16 on hawkish Fed commentary. Support: 98.20. Resistance: 100.50 / 101.30. World Gold Council notes medium-term dollar bear case intact — foreign equity outflows from US markets beginning.",
+    "safe_haven_analysis": "Gold and Treasuries both bid. Treasuries attracting inflows even as inflation is above target — a classic 'flight to quality' pattern. 10-year Treasury yield at ~4.15%. Gold-USD positive correlation persisting in this Iran-shock episode, breaking typical inverse relationship. Short-duration T-bills offering 4.8–5.0% yield — compelling risk-free alternative.",
+    "contagion_analysis": "CRE/Office CMBS delinquency contagion spreading to SaaS sector private credit ($46.9B in distressed tech loans as of Feb 2026, $25B in software leveraged loans below 80 cents on dollar). Deutsche Bank stuck with $1.2B hung deal (Conga/PROS acquisition). Private credit markdowns accelerating. Oil shock feeding into PPI → CPI lag threatening additional ICR compression in energy-intensive sectors.",
+    "oil_contagion": "Brent crude +35% since Iran conflict began; fell sharply on ceasefire announcement. WTI volatile. Strait of Hormuz declared open for commercial shipping but under 'coordinated routing' — US naval blockade remains. Oil-gold correlation elevated: refined product stress had been forcing fund liquidations in gold to cover fuel-import costs. This is now partially unwinding.",
+    "macro_context": "US is navigating a stagflationary vector: CPI and PPI accelerating, real consumer spending shrinking, and a labor market held up by healthcare strike reversals. March NFP beat masks structural federal govt decline (-18K) and financial sector weakness (-15K)."
+  },
+
+  "crypto_contagion": {
+    "summary": "BTC at $77,162 today — surged past $78K on April 17 when Iran announced Hormuz reopening, then pulled back. The $75,000 level has been both the ceiling and milestone for 2 months. ETH ($2,282) and SOL ($84) declining alongside BTC in the pullback. Crypto Fear & Greed Index at 29 (Fear). BTC funding rates on Binance have been negative for 46 straight days — historically a signal of an imminent short squeeze. BTC's 38.7% decline from its $126,080 ATH mirrors risk-off equity behavior. BTC-equity correlation elevated at ~0.68.",
+    "assets": [
+      {
+        "name": "BTC",
+        "price": "$77,162",
+        "change_24h": "+3.0%",
+        "change_7d": "+5.5%",
+        "contagion_signal": "MODERATE",
+        "note": "Surged on Hormuz ceasefire news. Key resistance $75–76K. $1.17B short liquidation pressure above $77K. Crowded shorts setting up potential squeeze. 46 days of negative funding rates."
+      },
+      {
+        "name": "ETH",
+        "price": "$2,282",
+        "change_24h": "-2.51%",
+        "change_7d": "-5.2%",
+        "contagion_signal": "MODERATE",
+        "note": "Pulling back with BTC. ETH/BTC ratio improving on onchain activity surge. Down 2%+ alongside altcoins on $75K ceiling failure."
+      },
+      {
+        "name": "SOL",
+        "price": "$84.40",
+        "change_24h": "-1.45%",
+        "change_7d": "-2.1%",
+        "contagion_signal": "LOW",
+        "note": "SOL holding relative to ETH. Below major resistance but declining with broader market."
+      }
+    ],
+    "btc_equity_correlation": "~0.68 — elevated risk-off co-movement with S&P 500. Both assets sold off on Iran escalation and rallied on ceasefire news simultaneously.",
+    "btc_gold_correlation": "~-0.12 — slight inverse; gold has outperformed massively YTD (+41.6%) vs BTC (-38.7% from ATH). Divergence confirms BTC is not yet a reliable safe haven.",
+    "market_cap": "$1.54T BTC market cap. 24h volume $59.6B (+32.9%)."
+  },
+
+  "credit": {
+    "mid_cap_avg_icr": 1.52,
+    "icr_alert": true,
+    "icr_alert_note": "Sector aggregate ICR barely above 1.5x alert threshold. Office REIT, Consumer Discretionary, and SaaS sub-sectors are pulling the average down. Any further rate pressure or earnings miss could push composite below 1.5x.",
+    "sectoral_breakdown": [
+      {
+        "sector": "Office / Commercial Real Estate (REITs)",
+        "average_icr": 0.98,
+        "status": "DISTRESSED",
+        "note": "CMBS delinquency at record highs. Rate environment crushing refinancing capacity. Forced sellers in multiple markets."
+      },
+      {
+        "sector": "Consumer Discretionary",
+        "average_icr": 1.31,
+        "status": "CRITICAL",
+        "note": "Tariff Refund Gap suppressing mid-cap importer cash flows. Retail Sales missing consensus for 2 months. ICR compression accelerating."
+      },
+      {
+        "sector": "SaaS / Technology (Mid-Cap)",
+        "average_icr": 1.22,
+        "status": "CRITICAL",
+        "note": "$46.9B in distressed SaaS loans. IGV down 23%+ YTD. P/S compressed from 9x to 6x. Private credit covenant-lite structures masking true distress."
+      },
+      {
+        "sector": "Industrials",
+        "average_icr": 1.48,
+        "status": "HIGH_ALERT",
+        "note": "PPI at 4.0% YoY squeezing input costs. Energy-intensive manufacturers most exposed."
+      },
+      {
+        "sector": "Healthcare",
+        "average_icr": 1.85,
+        "status": "ELEVATED",
+        "note": "Healthcare employment recovering post-strike. Some mid-caps with Medicare/Medicaid reimbursement exposure under budget pressure."
+      },
+      {
+        "sector": "Energy (Mid-Cap E&P)",
+        "average_icr": 2.10,
+        "status": "NORMAL",
+        "note": "Iran conflict initially boosted margins; ceasefire is bringing oil prices down sharply. Hedged producers insulated near-term."
+      }
+    ],
+    "pik_debt_issuance": "$48.2B YTD (est.)",
+    "pik_debt_note": "PIK issuance accelerating in SaaS and leveraged buyout space. Firms deferring cash interest as liquidity thins. Private credit funds reluctant to mark down.",
+    "cre_delinquency_rate": "12.34% (Office CMBS — Trepp, as of March 2026)",
+    "cre_delinquency_trend": "UP",
+    "mid_cap_hy_oas": "~385–420 bps",
+    "mid_cap_hy_oas_note": "ICE BofA HY OAS elevated. Iran shock drove spreads to 420 bps range; partial compression on ceasefire news. Still well above long-run average of ~350 bps.",
+    "cp_spreads": "~45–55 bps",
+    "cp_spreads_note": "Short-term funding remains stressed. Commercial paper market tight as banks reduce dealer balance sheet capacity.",
+    "vix_of_credit_cdx": "~82",
+    "vix_of_credit_note": "CDX NA High Yield 6-Month Volatility Index elevated. Reflects wide uncertainty band in HY credit spreads through H2 2026.",
+    "alert": true,
+    "watchlist": [
+      {
+        "firm_name": "AMC Entertainment Holdings",
+        "ticker": "AMC",
+        "sector": "Consumer Discretionary / Entertainment",
+        "debt_load": "$4.8B",
+        "icr": 1.05,
+        "insider_selling": "High",
+        "cds_pricing": "~720 bps",
+        "pik_usage": true,
+        "note": "Refinancing with Deutsche Bank Distressed Products Group. Theater attendance structurally declining. Debt-to-equity unsustainable. PIK toggle usage increasing."
+      },
+      {
+        "firm_name": "Medical Properties Trust",
+        "ticker": "MPW",
+        "sector": "Healthcare Real Estate (REIT)",
+        "debt_load": "$9.1B",
+        "icr": 1.10,
+        "insider_selling": "Moderate",
+        "cds_pricing": "~860 bps",
+        "pik_usage": false,
+        "note": "Hospital tenant defaults cascading. Steward Health Care bankruptcy overhang. CDS pricing near distress. Q1 2026 NOI declining."
+      },
+      {
+        "firm_name": "Lumen Technologies",
+        "ticker": "LUMN",
+        "sector": "Telecommunications",
+        "debt_load": "$18.6B",
+        "icr": 0.92,
+        "insider_selling": "High",
+        "cds_pricing": "~1,100 bps",
+        "pik_usage": true,
+        "note": "Revenue expected -5.2% in 2026. Heavy PIK debt use. AI pivot narrative not yet generating FCF. ICR well below 1.0x threshold. Default risk material in 12-18 months."
+      },
+      {
+        "firm_name": "iHeartMedia",
+        "ticker": "IHRT",
+        "sector": "Media / Broadcast",
+        "debt_load": "$5.2B",
+        "icr": 1.08,
+        "insider_selling": "Moderate",
+        "cds_pricing": "~890 bps",
+        "pik_usage": true,
+        "note": "Ad revenue in secular decline. Digital pivot costs consuming cash. Podcast/digital division not offsetting linear radio collapse. Maturity wall in 2027."
+      },
+      {
+        "firm_name": "Enviva Inc.",
+        "ticker": "EVA",
+        "sector": "Energy / Biomass",
+        "debt_load": "$3.1B",
+        "icr": 0.88,
+        "insider_selling": "High",
+        "cds_pricing": "~950 bps",
+        "pik_usage": false,
+        "note": "Emerged from Chapter 11 reorganization in 2024 but re-stressing as energy prices drop post-ceasefire. Wood pellet contracts under renegotiation. European demand softening."
+      }
+    ]
+  },
+
+  "events": [
+    {
+      "title": "Iran–US Ceasefire Negotiations & Strait of Hormuz Partial Reopening",
+      "category": "GEOPOLITICAL",
+      "severity": "CRITICAL",
+      "description": "Iran announced the Strait of Hormuz is open to commercial shipping during a 10-day ceasefire, but vessels must follow a 'coordinated route.' US naval blockade remains in force per Trump. Separate 10-day Israel-Lebanon ceasefire also in effect. Terms of a comprehensive deal remain unknown.",
+      "potential_impact": "Oil prices fell 10%+ on April 18 on the news. If the deal holds: energy inflation unwind, Fed cut timeline pulls forward, gold sells off partially. If deal fails: oil re-spikes to $120+, stagflation risk resumes, gold re-tests $5,000. The 'deal in progress' state is the most volatile for markets."
+    },
+    {
+      "title": "US Retail Sales — March 2026 Release (TOMORROW)",
+      "category": "ECONOMIC_DATA",
+      "severity": "HIGH",
+      "description": "Advance Monthly Retail Sales for March 2026 scheduled for release April 21, 2026 at 8:30 AM EDT. Chicago Fed CARTS model projects +0.9% nominal ex-auto but -1.1% real (inflation-adjusted). This would confirm real consumer spending is contracting despite nominal headline beat.",
+      "potential_impact": "A miss would confirm consumer spending crack and increase recession probability. A beat could provide false comfort masking real dollar purchasing power destruction from energy inflation."
+    },
+    {
+      "title": "Fed Independence Under Political Pressure — Powell Term Expiry",
+      "category": "LEGAL",
+      "severity": "HIGH",
+      "description": "Jerome Powell's Fed Chair term expires May 15, 2026. Trump has been pressing for rate cuts and a DOJ criminal investigation subpoena was issued against Powell. Powell has stated the Fed will not follow presidential preferences. A new Chair appointment is imminent and is expected to be more dovish.",
+      "potential_impact": "New Chair uncertainty creating 'Fed transition risk premium.' Markets may price in a more aggressive cut cycle under a Trump-aligned Chair. Dollar weakness and gold strength likely to re-accelerate post-May 15."
+    },
+    {
+      "title": "SaaS / Private Credit Distress — $46.9B in Distressed Tech Loans",
+      "category": "CREDIT",
+      "severity": "HIGH",
+      "description": "As of February 2026, $46.9B in US tech/SaaS company loans are trading at distressed levels (below 80 cents on the dollar), per Bloomberg Intelligence. $25B in software leveraged loans specifically. Deutsche Bank stuck with a $1.2B hung deal (Conga/PROS acquisition). IGV software ETF down 23%+ YTD.",
+      "potential_impact": "Private credit marks down delayed due to self-valuation incentives. Redemption pressure on private credit funds when markdowns come. Banks with indirect exposure face secondary losses. Broad credit tightening risk if contagion spreads to IG-rated companies."
+    },
+    {
+      "title": "Trump Tariff Refund Gap — $175B in Escrowed Duties",
+      "category": "TRADE",
+      "severity": "HIGH",
+      "description": "Following the February 20 SCOTUS ruling that struck down IEEPA emergency tariffs as illegal, $175B in escrowed duties remain unreleased by the administration. Mid-cap importers are simultaneously awaiting refunds while paying new 10% surcharges.",
+      "potential_impact": "Silent liquidity killer for Consumer Discretionary mid-caps. ICR compression in the sector is directly attributable to this cash flow dislocation. No near-term resolution signal from the administration."
+    },
+    {
+      "title": "FOMC Meeting — April 28–29, 2026",
+      "category": "RATE_DECISION",
+      "severity": "MEDIUM",
+      "description": "CME FedWatch pricing 99.5% probability of a hold. But this will be one of Powell's final meetings as Chair. Post-meeting press conference will be closely watched for any softening in language ahead of Chair transition.",
+      "potential_impact": "Any dovish language shift would be interpreted as Powell setting the stage for his successor to cut. Dollar could weaken, gold rally, and long-duration bonds benefit."
+    }
+  ],
+
+  "portfolio_suggestions": [
+    {
+      "asset_class": "Short-Duration T-Bills (1–3 Month)",
+      "percentage": "30%",
+      "rationale": "4.8–5.0% risk-free yield with zero duration risk. Ceasefire uncertainty means the macro regime can flip within days. Stay liquid. This is the highest-conviction position until Fed Chair transition resolves."
+    },
+    {
+      "asset_class": "Gold (Physical / GLD ETF)",
+      "percentage": "15%",
+      "rationale": "Central bank accumulation structural floor. Up 41.6% YoY. Ceasefire dip is a tactical buying opportunity. Chair transition to a dovish successor is a strong catalyst for gold re-test of $5,200. DXY medium-term bear case intact per World Gold Council."
+    },
+    {
+      "asset_class": "Energy Sector Equities (Hedged Producers)",
+      "percentage": "10%",
+      "rationale": "Ceasefire reduces oil price but doesn't end Middle East risk. Hedged E&P names with ICR > 3.0x benefit from elevated price environment while protected against vol. Avoid unhedged mid-cap E&P."
+    },
+    {
+      "asset_class": "Investment Grade Corporate Bonds (2–5 Year)",
+      "percentage": "20%",
+      "rationale": "IG spreads relatively contained vs. HY. Duration exposure manageable in 2–5 year range. Provides income while avoiding HY/mid-cap default risk. Favor healthcare, utilities, and consumer staples issuers."
+    },
+    {
+      "asset_class": "Defensive Equities (Utilities / Consumer Staples)",
+      "percentage": "15%",
+      "rationale": "XLU and XLP outperform during high volatility regimes. Strong balance sheets, ICR > 3.0x, and inflation pass-through capability. Insulated from Tariff Refund Gap and SaaS distress."
+    },
+    {
+      "asset_class": "Cash (Money Market)",
+      "percentage": "10%",
+      "rationale": "Dry powder for post-ceasefire volatility opportunities. Retail Sales print tomorrow — if weak, buy quality on any dip."
+    }
+  ],
+
+  "risk_mitigation_steps": [
+    "Screen ALL holdings for ICR < 1.5x. Any mid-cap position with interest coverage below threshold should be reviewed for exit or hedge. Prioritize names with ICR > 3.0x only.",
+    "Exit or fully hedge Office REIT exposure immediately. 12.34% CMBS delinquency rate is not recoverable in a higher-for-longer environment. Use put options or short via SREIT ETF.",
+    "Hedge long equity exposure using OTM VIX calls or SPX puts. Iran ceasefire is temporary — comprehensive deal terms unknown. A single failed negotiation session could reprice risk assets 5–10% lower within hours.",
+    "Reduce all HY bonds with PIK toggle provisions. PIK issuance acceleration signals firms are already cash-insolvent. These are equity-like risk with bond priority. Exit before covenant breaches crystallize.",
+    "Do NOT chase the SaaS rebound. IGV down 23% is not yet a value opportunity — $46.9B in distressed loans has not been fully marked. Private credit fund redemption pressure will create forced selling in public SaaS names.",
+    "Monitor gold $4,700 support level. If Iran deal collapses, re-load gold aggressively on any dip to $4,700–4,750. This level represents the demand floor from central bank accumulators.",
+    "Prepare for Powell Chair transition volatility around May 15. A new dovish Fed Chair is a dollar-negative, gold-positive, long-duration bond-positive event. Pre-position TLT or long gold before the announcement.",
+    "Watch Retail Sales tomorrow (April 21). If March print shows real spending contraction, increase T-bill allocation and reduce consumer discretionary exposure further.",
+    "For the Trading LLC: avoid any name where the company is relying on Commercial Paper issuance for operations (CP spreads at +45–55 bps mean refinancing costs are rising). Focus on FCF-positive names only."
+  ]
+}

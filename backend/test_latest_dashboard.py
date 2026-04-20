@@ -10,7 +10,7 @@ def test_load_latest_dashboard_round_trip(tmp_path, monkeypatch):
     monkeypatch.setattr(agent, "_LATEST_CACHE_PATH", latest_file)
 
     payload = {
-        "provider": "Nvidia",
+        "provider": "Qwen 2.5 Coder",
         "date": "2026-04-20",
         "timestamp": 1,
         "dashboard_data": {
@@ -39,11 +39,11 @@ def test_load_latest_dashboard_round_trip(tmp_path, monkeypatch):
 
     loaded = agent._load_latest_dashboard()
     assert loaded is not None
-    assert loaded["provider"] == "Nvidia"
+    assert loaded["provider"] == "Qwen 2.5 Coder"
 
 
 def test_latest_dashboard_endpoint(monkeypatch):
-    sample_payload = {"provider": "Nvidia", "dashboard_data": {"risk": {"score": 5, "summary": "ok"}}}
+    sample_payload = {"provider": "Qwen 2.5 Coder", "dashboard_data": {"risk": {"score": 5, "summary": "ok"}}}
     monkeypatch.setattr(main, "_load_latest_dashboard", lambda: sample_payload)
 
     client = TestClient(main.app)

@@ -4,8 +4,12 @@ import logging
 import traceback
 from dotenv import load_dotenv
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+try:
+    from backend.logging_config import configure_logging
+except ImportError:
+    from logging_config import configure_logging
+
+configure_logging()
 logger = logging.getLogger("Main")
 
 # Load environment variables before any other local imports

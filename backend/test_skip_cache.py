@@ -34,7 +34,7 @@ def test_stream_skip_cache_bypasses_cache(monkeypatch):
     monkeypatch.setattr(agent, "_run_parallel_sections", fake_run_parallel)
     monkeypatch.setattr(agent, "_save_cache", lambda *_args, **_kwargs: None)
 
-    chunks = asyncio.run(_collect_stream(agent.stream_macro_dashboard("Nvidia", skip_cache=True)))
+    chunks = asyncio.run(_collect_stream(agent.stream_macro_dashboard("Qwen 2.5 Coder", skip_cache=True)))
     payloads = [json.loads(chunk) for chunk in chunks]
     assert payloads[0]["message"].startswith("Orchestrating agents")
 

@@ -12,28 +12,48 @@ from dotenv import load_dotenv
 from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_core.messages import HumanMessage
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+try:
+    from backend.logging_config import configure_logging
+    from backend.runtime_paths import CACHE_DIR, LATEST_DASHBOARD_PATH
+except ImportError:
+    from logging_config import configure_logging
+    from runtime_paths import CACHE_DIR, LATEST_DASHBOARD_PATH
+
+configure_logging()
 logger = logging.getLogger("AgentOrchestrator")
 
 load_dotenv()
 
 try:
-    from backend.models import MacroDashboardResponse
+    from backend.models import (
+        CreditHealth,
+        CryptoContagion,
+        MacroCalendar,
+        MacroDashboardResponse,
+        MarketEvent,
+        PortfolioAllocation,
+        RiskSentiment,
+    )
     from backend.providers import get_provider, normalize_provider_name
 except ImportError:
-    from models import MacroDashboardResponse
+    from models import (
+        CreditHealth,
+        CryptoContagion,
+        MacroCalendar,
+        MacroDashboardResponse,
+        MarketEvent,
+        PortfolioAllocation,
+        RiskSentiment,
+    )
     from providers import get_provider, normalize_provider_name
 
 # --- Retry Configuration ---
-MAX_RETRIES = 3
+MAX_RETRIES = 5
 INITIAL_RETRY_DELAY = 1.0
 MAX_RETRY_DELAY = 10.0
 
 # --- Cache Configuration ---
-CACHE_DIR = Path(__file__).resolve().parent / "cache"
-CACHE_DIR.mkdir(exist_ok=True)
-_LATEST_CACHE_PATH = Path(__file__).resolve().parent / "latest_dashboard.json"
+_LATEST_CACHE_PATH = LATEST_DASHBOARD_PATH
 _FALLBACK_CACHE_PATH = Path(__file__).resolve().parent / "fallback_dashboard.json"
 _SECTION_NAMES = ("calendar", "risk", "credit", "strategy")
 
@@ -48,6 +68,7 @@ class AgentState(TypedDict):
     strategy_data: Optional[Dict[str, Any]]
     dashboard_data: Optional[MacroDashboardResponse]
     raw_responses: list[str]
+    reasoning: Optional[str]
 
 
 def _load_daily_cache(provider_name: str) -> dict | None:
@@ -97,13 +118,116 @@ def _load_fallback_dashboard() -> dict | None:
 
 
 def _is_cloud(provider_name: str) -> bool:
-    return provider_name.lower() in {"gemini", "claude", "nvidia", "bytedance"}
+    return provider_name.lower() in {"gemini", "claude", "qwen", "bytedance", "deepseek"}
 
 
 def _get_throttle_time(provider_name: str) -> float:
     if provider_name.lower() == "gemini":
         return float(os.getenv("GEMINI_THROTTLE_SEC", "5.0"))
     return 0.0
+
+
+def _extract_balanced_json_block(text: str) -> str | None:
+    start = -1
+    for idx, char in enumerate(text):
+        if char in "{[":
+            start = idx
+            break
+    if start < 0:
+        return None
+
+    stack: list[str] = [text[start]]
+    in_string = False
+    escaped = False
+    for idx in range(start + 1, len(text)):
+        ch = text[idx]
+
+        if in_string:
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == '"':
+                in_string = False
+            continue
+
+        if ch == '"':
+            in_string = True
+            continue
+        if ch in "{[":
+            stack.append(ch)
+            continue
+        if ch == "}":
+            if not stack:
+                return None
+            top = stack.pop()
+            if top != "{":
+                return None
+            if not stack:
+                return text[start : idx + 1]
+            continue
+        if ch == "]":
+            if not stack:
+                return None
+            top = stack.pop()
+            if top != "[":
+                return None
+            if not stack:
+                return text[start : idx + 1]
+            continue
+    return None
+
+
+def _try_parse_json_payload(content: str) -> tuple[Any | None, str]:
+    stripped = content.strip()
+    
+    # Remove markdown code blocks if present
+    clean_content = stripped
+    if "```" in stripped:
+        match = re.search(r"```(?:json)?\s*(.*?)\s*```", stripped, re.DOTALL | re.IGNORECASE)
+        if match:
+            clean_content = match.group(1).strip()
+        else:
+            clean_content = re.sub(r"^```(?:json)?\s*|\s*```$", "", stripped, flags=re.IGNORECASE | re.DOTALL).strip()
+
+    candidates: list[str] = [clean_content]
+
+    balanced = _extract_balanced_json_block(clean_content)
+    if balanced:
+        candidates.append(balanced)
+    
+    # Fallback to the original stripped content if cleaning was too aggressive
+    if stripped not in candidates:
+        candidates.append(stripped)
+
+    seen: set[str] = set()
+    unique_candidates: list[str] = []
+    for candidate in candidates:
+        if candidate and candidate not in seen:
+            seen.add(candidate)
+            unique_candidates.append(candidate)
+
+    last_error = "Unknown JSON parse failure"
+    for candidate in unique_candidates:
+        try:
+            return json.loads(candidate), candidate
+        except json.JSONDecodeError:
+            # Try basic fixes for common LLM JSON errors
+            try:
+                # Fix trailing commas in objects and arrays
+                fixed = re.sub(r",\s*([\]}])", r"\1", candidate)
+                # Fix unescaped newlines within strings (basic attempt)
+                fixed = fixed.replace("\n", "\\n").replace("\r", "\\r")
+                # But don't escape actual JSON structure newlines
+                fixed = fixed.replace("\\n{", "\n{").replace("}\\n", "}\n")
+                fixed = fixed.replace("\\n[", "\n[").replace("]\\n", "]\n")
+                fixed = fixed.replace('":\\n"', '": "').replace('",\\n"', '", "')
+                
+                return json.loads(fixed), fixed
+            except Exception as exc:
+                last_error = str(exc)
+
+    return None, f"JSON Parse Error: {last_error}"
 
 
 async def _call_sub_agent(state: AgentState, section: str, instruction: str) -> Dict[str, Any]:
@@ -130,18 +254,36 @@ async def _call_sub_agent(state: AgentState, section: str, instruction: str) -> 
             provider = get_provider(provider_name)
             model = provider.get_model()
 
-            response = await model.ainvoke([HumanMessage(content=prompt)])
+            # Added timeout to prevent hanging on gateway timeouts
+            response = await asyncio.wait_for(
+                model.ainvoke([HumanMessage(content=prompt)]),
+                timeout=120.0
+            )
+            
+            # Extract content and reasoning
             content = response.content if hasattr(response, "content") else str(response)
+            
+            reasoning = None
+            if hasattr(response, "additional_kwargs"):
+                # Try to extract reasoning from additional_kwargs (OpenAI/QWEN style)
+                reasoning = response.additional_kwargs.get("reasoning_content")
+            
+            if not reasoning and hasattr(response, "response_metadata"):
+                # Some providers put it in response_metadata
+                reasoning = response.response_metadata.get("reasoning_content")
 
-            json_match = re.search(r"(\{.*\})|(\[.*\])", content, re.DOTALL)
-            clean_content = json_match.group(0) if json_match else content
-            parsed = json.loads(clean_content)
+            parsed, parsed_or_error = _try_parse_json_payload(content)
+            if parsed is None:
+                raise json.JSONDecodeError(parsed_or_error, content, 0)
 
             logger.info("Sub-Agent [%s] Success on attempt %s", section, attempt + 1)
-            return {"data": parsed, "raw": clean_content}
+            return {"data": parsed, "raw": parsed_or_error, "reasoning": reasoning}
         except json.JSONDecodeError as exc:
             last_error = f"JSON Parse Error: {exc}"
-            logger.warning("Sub-Agent [%s] JSON parsing failed: %s", section, exc)
+            if attempt < MAX_RETRIES - 1:
+                logger.info("Sub-Agent [%s] JSON parsing failed on attempt %s, retrying.", section, attempt + 1)
+            else:
+                logger.warning("Sub-Agent [%s] JSON parsing failed: %s", section, exc)
         except Exception as exc:
             last_error = str(exc)
             logger.warning("Sub-Agent [%s] Attempt %s failed: %s", section, attempt + 1, exc)
@@ -160,54 +302,71 @@ async def researcher_node(state: AgentState) -> Dict[str, Any]:
 
     logger.info("Researcher Agent: Scraping latest macro data...")
     search = DuckDuckGoSearchRun()
+    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     queries = [
-        "latest macro economic dates CPI PPI Jobs 2026",
-        "G7 central bank rates guidance 2026",
-        "credit spreads mid-cap ICR 2026",
+        f"current gold price and crude oil price today {today_str}",
+        f"latest macro economic dates CPI PPI Jobs 2026",
+        f"G7 central bank rates guidance 2026",
+        f"credit spreads mid-cap ICR and delinquency rates 2026",
     ]
 
     async def run_query(query: str) -> str:
         try:
-            result = await asyncio.to_thread(search.run, query)
+            # Added internal timeout for search
+            result = await asyncio.wait_for(
+                asyncio.to_thread(search.run, query),
+                timeout=30.0
+            )
             return f"### {query}\n{result}"
-        except Exception:
+        except Exception as exc:
+            logger.warning("Search query failed for '%s': %s", query, exc)
             return ""
 
-    query_results = await asyncio.gather(*(run_query(query) for query in queries))
-    return {"aggregated_research": "\n\n".join(result for result in query_results if result)}
+    # Run queries with a slight stagger
+    query_results = []
+    for q in queries:
+        res = await run_query(q)
+        if res:
+            query_results.append(res)
+        await asyncio.sleep(1.0) # Small stagger to avoid rate limiting
+
+    return {"aggregated_research": "\n\n".join(query_results) if query_results else "No fresh web data found."}
 
 
 async def calendar_agent(state: AgentState) -> Dict[str, Any]:
+    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     instruction = (
-        "Extract macro dates for CPI, PPI, Jobs, Retail Sales, FED, BOJ, BOE, ECB. "
-        "For each date, include: 'event', 'last_date' (YYYY-MM-DD), 'last_period' (e.g. March 2026), "
-        "'next_date' (YYYY-MM-DD), 'consensus', 'actual', 'signal' (BEAT/MISS), and a detailed 'note' explaining the driver. "
-        "For central bank rates, include: 'bank', 'rate', 'last_decision_date', 'last_decision' (Hold/Cut/Hike), "
-        "'next_date', and detailed 'guidance'. "
-        "Also provide a 'g7_rates_summary' list with 'country', 'rate', and 'bank'."
+        f"Extract LATEST AVAILABLE macro economic dates as of {today_str}.\n"
+        f"Return ONLY valid JSON with two arrays: 'dates' and 'rates'.\n"
+        f"dates array: List items with event|last_date|next_date|signal (inline format, no nested objects).\n"
+        f"rates array: List items with bank|rate|guidance (inline format, no nested objects).\n"
+        f"Example: {{\"dates\": [{{\"event\": \"CPI Release\", \"last_date\": \"2026-03-10\", \"next_date\": \"2026-04-10\", \"signal\": \"BEAT\"}}], \"rates\": [{{\"bank\": \"FED\", \"rate\": \"5.5%\", \"guidance\": \"Hold\"}}]}}\n"
+        f"Include major events: CPI, PPI, Jobs, FED, BOJ, BOE, ECB. Keep values as strings. Return ONLY valid JSON."
     )
     result = await _call_sub_agent(state, "Calendar", instruction)
-    return {"calendar_data": result["data"], "raw_responses": [result["raw"]]}
+    return {"calendar_data": result["data"], "raw_responses": [result["raw"]], "reasoning": result.get("reasoning")}
 
 
 async def risk_agent(state: AgentState) -> Dict[str, Any]:
+    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     instruction = (
-        "Analyze market risk sentiment. Return a JSON with: "
+        f"Analyze market risk sentiment using LATEST AVAILABLE data as of {today_str}. Return a JSON with: "
         "'score' (FLOAT 0.0-10.0), 'label' (e.g. Elevated / Geopolitical Stress), 'summary' (detailed), "
-        "'gold_technical' (detailed price levels/resistance), 'usd_technical' (DXY levels/drivers), "
+        "'gold_technical' (CURRENT gold price and detailed levels), 'usd_technical' (DXY levels/drivers), "
         "'safe_haven_analysis' (Treasury/Gold flows), 'contagion_analysis' (Credit/Sector spread), "
-        "'oil_contagion' (Crude price impact), and 'macro_context' (broad economic vector). "
+        "'oil_contagion' (CURRENT crude price impact), and 'macro_context' (broad economic vector). "
         "ALSO include a 'crypto_contagion' object with: 'summary', 'market_cap', 'btc_equity_correlation', "
         "'btc_gold_correlation', and an 'assets' list of objects for BTC, ETH, SOL containing "
         "'name', 'price', 'change_24h', 'change_7d', 'contagion_signal' (MODERATE/LOW/HIGH), and 'note'."
     )
     result = await _call_sub_agent(state, "Risk", instruction)
-    return {"risk_data": result["data"], "raw_responses": [result["raw"]]}
+    return {"risk_data": result["data"], "raw_responses": [result["raw"]], "reasoning": result.get("reasoning")}
 
 
 async def credit_agent(state: AgentState) -> Dict[str, Any]:
+    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     instruction = (
-        "Analyze Credit Health. Return a JSON with: "
+        f"Analyze Credit Health using LATEST AVAILABLE data as of {today_str}. Return a JSON with: "
         "'mid_cap_avg_icr' (FLOAT), 'icr_alert' (BOOL), 'icr_alert_note' (detailed), "
         "'sectoral_breakdown' (list of objects with 'sector', 'average_icr' (FLOAT), 'status', 'note'), "
         "'pik_debt_issuance' (string), 'pik_debt_note' (detailed), "
@@ -219,22 +378,23 @@ async def credit_agent(state: AgentState) -> Dict[str, Any]:
         "'icr' (FLOAT), 'insider_selling', 'cds_pricing', 'pik_usage' (BOOL), and 'note')."
     )
     result = await _call_sub_agent(state, "Credit", instruction)
-    return {"credit_data": result["data"], "raw_responses": [result["raw"]]}
+    return {"credit_data": result["data"], "raw_responses": [result["raw"]], "reasoning": result.get("reasoning")}
 
 
 async def strategy_agent(state: AgentState) -> Dict[str, Any]:
+    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     instruction = (
-        "Analyze macro-economic strategy. Return a JSON with: "
+        f"Analyze macro-economic strategy using LATEST AVAILABLE data as of {today_str}. Return a JSON with: "
         "'events' (list of objects with 'title', 'category' (GEOPOLITICAL/ECONOMIC_DATA/LEGAL/CREDIT/TRADE/RATE_DECISION), "
         "'severity' (CRITICAL/HIGH/MEDIUM/LOW), 'description' (detailed), 'potential_impact' (detailed)), "
         "'portfolio_suggestions' (list of objects with 'asset_class', 'percentage' (e.g. 30%), 'rationale' (detailed)), "
         "and 'risk_mitigation_steps' (list of detailed strings)."
     )
     result = await _call_sub_agent(state, "Strategy", instruction)
-    return {"strategy_data": result["data"], "raw_responses": [result["raw"]]}
+    return {"strategy_data": result["data"], "raw_responses": [result["raw"]], "reasoning": result.get("reasoning")}
 
 
-async def _run_parallel_sections(state: AgentState) -> tuple[Dict[str, Any], Dict[str, bool], list[str], set[str]]:
+async def _run_parallel_sections(state: AgentState) -> tuple[Dict[str, Any], Dict[str, bool], list[str], set[str], list[str]]:
     sections = [
         ("calendar", calendar_agent),
         ("risk", risk_agent),
@@ -248,6 +408,7 @@ async def _run_parallel_sections(state: AgentState) -> tuple[Dict[str, Any], Dic
     status: Dict[str, bool] = {}
     raw_responses: list[str] = []
     failed_sections: set[str] = set()
+    reasoning_list: list[str] = []
 
     for (name, _), result in zip(sections, results):
         data_key = f"{name}_data"
@@ -262,16 +423,23 @@ async def _run_parallel_sections(state: AgentState) -> tuple[Dict[str, Any], Dic
 
         updates[data_key] = result.get(data_key)
         raw_responses.extend(result.get("raw_responses", []))
+        
+        reasoning = result.get("reasoning")
+        if reasoning:
+            reasoning_list.append(f"### {name.capitalize()} Reasoning\n{reasoning}")
+
         section_ok = result.get(data_key) is not None
         status[name] = section_ok
         if not section_ok:
             failed_sections.add(name)
 
-    return updates, status, raw_responses, failed_sections
+    return updates, status, raw_responses, failed_sections, reasoning_list
 
 
-def aggregator_node(state: AgentState) -> Dict[str, Any]:
+def aggregator_node(state: AgentState, reasoning_list: Optional[list[str]] = None) -> Dict[str, Any]:
     logger.info("Aggregator: Constructing final dashboard report...")
+
+    combined_reasoning = "\n\n".join(reasoning_list) if reasoning_list else None
 
     missing_sections = []
     calendar_data = state.get("calendar_data")
@@ -312,21 +480,109 @@ def aggregator_node(state: AgentState) -> Dict[str, Any]:
     if missing_sections:
         logger.warning("Aggregator: Missing data from sections: %s", ", ".join(missing_sections))
 
+    normalized_calendar = _normalize_calendar_payload(calendar_data)
+    normalized_risk = _normalize_risk_payload(risk_data)
+    normalized_credit = _normalize_credit_payload(credit_data)
+    normalized_strategy = _normalize_strategy_payload(strategy_data)
+
+    try:
+        calendar_model = MacroCalendar.model_validate(normalized_calendar)
+    except Exception as exc:
+        logger.warning("Aggregator: Calendar validation failed, using fallback. Error: %s", exc)
+        calendar_model = MacroCalendar.model_validate({"dates": [], "rates": [], "g7_rates_summary": []})
+
+    try:
+        risk_model = RiskSentiment.model_validate(normalized_risk)
+    except Exception as exc:
+        logger.warning("Aggregator: Risk validation failed, using fallback. Error: %s", exc)
+        risk_model = RiskSentiment.model_validate(
+            {"score": 5, "summary": "No data - API failed", "contagion_analysis": "N/A"}
+        )
+
+    try:
+        credit_model = CreditHealth.model_validate(normalized_credit)
+    except Exception as exc:
+        logger.warning("Aggregator: Credit validation failed, using fallback. Error: %s", exc)
+        credit_model = CreditHealth.model_validate(
+            {
+                "mid_cap_avg_icr": 0,
+                "sectoral_breakdown": [],
+                "pik_debt_issuance": "N/A",
+                "cre_delinquency_rate": "N/A",
+                "mid_cap_hy_oas": "N/A",
+                "cp_spreads": "N/A",
+                "vix_of_credit_cdx": "N/A",
+                "watchlist": [],
+                "alert": False,
+            }
+        )
+
     crypto_contagion = None
-    if isinstance(risk_data, dict):
-        crypto_contagion = risk_data.get("crypto_contagion")
+    if isinstance(normalized_risk, dict):
+        try:
+            if normalized_risk.get("crypto_contagion") is not None:
+                crypto_contagion = CryptoContagion.model_validate(normalized_risk.get("crypto_contagion"))
+        except Exception as exc:
+            logger.warning("Aggregator: Crypto contagion validation failed, dropping section. Error: %s", exc)
+            crypto_contagion = None
+
+    events_raw = normalized_strategy.get("events", [])
+    events: list[MarketEvent] = []
+    for event in events_raw if isinstance(events_raw, list) else []:
+        try:
+            events.append(MarketEvent.model_validate(event))
+        except Exception:
+            continue
+
+    suggestions_raw = normalized_strategy.get("portfolio_suggestions", [])
+    suggestions: list[PortfolioAllocation] = []
+    for suggestion in suggestions_raw if isinstance(suggestions_raw, list) else []:
+        try:
+            suggestions.append(PortfolioAllocation.model_validate(suggestion))
+        except Exception:
+            continue
+
+    mitigation_raw = normalized_strategy.get("risk_mitigation_steps", [])
+    mitigation_steps = [str(step) for step in mitigation_raw] if isinstance(mitigation_raw, list) else []
 
     combined = {
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "calendar": calendar_data,
-        "risk": risk_data,
-        "crypto_contagion": crypto_contagion,
-        "credit": credit_data,
-        "events": strategy_data.get("events", []),
-        "portfolio_suggestions": strategy_data.get("portfolio_suggestions", []),
-        "risk_mitigation_steps": strategy_data.get("risk_mitigation_steps", []),
+        "calendar": calendar_model.model_dump(),
+        "risk": risk_model.model_dump(),
+        "crypto_contagion": crypto_contagion.model_dump() if crypto_contagion else None,
+        "credit": credit_model.model_dump(),
+        "events": [event.model_dump() for event in events],
+        "portfolio_suggestions": [suggestion.model_dump() for suggestion in suggestions],
+        "risk_mitigation_steps": mitigation_steps,
+        "reasoning": combined_reasoning,
     }
-    dashboard = MacroDashboardResponse.model_validate(combined)
+
+    try:
+        dashboard = MacroDashboardResponse.model_validate(combined)
+    except Exception as exc:
+        logger.error("Aggregator: Final validation failed, returning fully safe fallback. Error: %s", exc)
+        dashboard = MacroDashboardResponse.model_validate(
+            {
+                "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "calendar": {"dates": [], "rates": [], "g7_rates_summary": []},
+                "risk": {"score": 5, "summary": "Fallback dashboard", "contagion_analysis": "N/A"},
+                "credit": {
+                    "mid_cap_avg_icr": 0,
+                    "sectoral_breakdown": [],
+                    "pik_debt_issuance": "N/A",
+                    "cre_delinquency_rate": "N/A",
+                    "mid_cap_hy_oas": "N/A",
+                    "cp_spreads": "N/A",
+                    "vix_of_credit_cdx": "N/A",
+                    "watchlist": [],
+                    "alert": False,
+                },
+                "events": [],
+                "portfolio_suggestions": [],
+                "risk_mitigation_steps": [],
+            }
+        )
+
     return {"dashboard_data": dashboard}
 
 
@@ -341,6 +597,207 @@ def _build_initial_state(provider_name: str) -> AgentState:
         "credit_data": None,
         "strategy_data": None,
         "dashboard_data": None,
+    }
+
+
+def _normalize_calendar_payload(raw_calendar: Any) -> Dict[str, Any]:
+    """Normalize common LLM calendar payload variants to MacroCalendar shape.
+
+    Expected final shape:
+    {
+      "dates": [...],
+      "rates": [...],
+      "g7_rates_summary": [...]
+    }
+    """
+    if not isinstance(raw_calendar, dict):
+        return {"dates": [], "rates": [], "g7_rates_summary": []}
+
+    dates_raw = raw_calendar.get("dates")
+    rates_raw = raw_calendar.get("rates")
+    g7_raw = raw_calendar.get("g7_rates_summary")
+
+    # Common alternate fields from model outputs.
+    events_raw = raw_calendar.get("events")
+    economic_raw = raw_calendar.get("economic_data")
+    policy_rates_raw = raw_calendar.get("policy_rates") or raw_calendar.get("central_banks")
+
+    # Ensure lists only - reject scalars and dict objects
+    if not isinstance(dates_raw, list):
+        dates_raw = [] if isinstance(dates_raw, (str, dict)) else []
+    if not isinstance(rates_raw, list):
+        rates_raw = [] if isinstance(rates_raw, (str, dict)) else []
+    if not isinstance(g7_raw, list):
+        g7_raw = [] if isinstance(g7_raw, (str, dict)) else []
+
+    if isinstance(events_raw, list):
+        for item in events_raw:
+            if not isinstance(item, dict):
+                continue
+            # If it looks like central bank info, route to rates.
+            if "bank" in item or "rate" in item or "guidance" in item:
+                rates_raw.append(item)
+            else:
+                dates_raw.append(item)
+
+    if isinstance(economic_raw, list):
+        dates_raw.extend(item for item in economic_raw if isinstance(item, dict))
+
+    if isinstance(policy_rates_raw, list):
+        rates_raw.extend(item for item in policy_rates_raw if isinstance(item, dict))
+
+    normalized_dates: list[dict[str, Any]] = []
+    for item in dates_raw:
+        if not isinstance(item, dict):
+            continue
+        normalized_dates.append(
+            {
+                "event": item.get("event") or item.get("title") or item.get("name") or "Unknown Event",
+                "last_date": item.get("last_date") or item.get("previous_date") or item.get("date") or "N/A",
+                "last_period": item.get("last_period"),
+                "next_date": item.get("next_date") or item.get("upcoming_date") or "N/A",
+                "consensus": item.get("consensus"),
+                "actual": item.get("actual"),
+                "signal": item.get("signal"),
+                "note": item.get("note"),
+            }
+        )
+
+    normalized_rates: list[dict[str, Any]] = []
+    for item in rates_raw:
+        if not isinstance(item, dict):
+            continue
+        normalized_rates.append(
+            {
+                "bank": item.get("bank") or item.get("central_bank") or item.get("institution") or "Unknown Bank",
+                "rate": str(item.get("rate") if item.get("rate") is not None else "N/A"),
+                "last_decision_date": item.get("last_decision_date") or item.get("last_date"),
+                "last_decision": item.get("last_decision"),
+                "next_date": item.get("next_date"),
+                "guidance": item.get("guidance") or item.get("note") or "N/A",
+            }
+        )
+
+    normalized_g7: list[dict[str, Any]] = []
+    source_g7 = g7_raw if g7_raw else normalized_rates
+    for item in source_g7:
+        if not isinstance(item, dict):
+            continue
+        normalized_g7.append(
+            {
+                "country": item.get("country") or item.get("bank") or "N/A",
+                "rate": str(item.get("rate") if item.get("rate") is not None else "N/A"),
+                "bank": item.get("bank") or item.get("central_bank") or "N/A",
+            }
+        )
+
+    return {
+        "dates": normalized_dates,
+        "rates": normalized_rates,
+        "g7_rates_summary": normalized_g7,
+    }
+
+
+def _to_float(value: Any, default: float) -> float:
+    if isinstance(value, bool):
+        return default
+    if isinstance(value, (int, float)):
+        result = float(value)
+        if result != result:  # NaN
+            return default
+        return result
+    if isinstance(value, str):
+        try:
+            result = float(value)
+            if result != result:  # NaN
+                return default
+            return result
+        except ValueError:
+            return default
+    return default
+
+
+def _normalize_risk_payload(raw_risk: Any) -> Dict[str, Any]:
+    if not isinstance(raw_risk, dict):
+        return {"score": 5.0, "summary": "No data - API failed", "contagion_analysis": "N/A"}
+
+    score = _to_float(raw_risk.get("score"), 5.0)
+    score = min(max(score, 0.0), 10.0)
+
+    summary = raw_risk.get("summary") or raw_risk.get("label") or "No risk summary available"
+    contagion = raw_risk.get("contagion_analysis") or raw_risk.get("safe_haven_analysis") or "N/A"
+
+    crypto_raw = raw_risk.get("crypto_contagion")
+    if isinstance(crypto_raw, dict):
+        crypto_raw = {
+            "summary": crypto_raw.get("summary") or "Crypto section available with partial details",
+            "assets": crypto_raw.get("assets") if isinstance(crypto_raw.get("assets"), list) else [],
+            "btc_equity_correlation": crypto_raw.get("btc_equity_correlation"),
+            "btc_gold_correlation": crypto_raw.get("btc_gold_correlation"),
+            "market_cap": crypto_raw.get("market_cap"),
+        }
+    else:
+        crypto_raw = None
+
+    return {
+        "score": score,
+        "label": raw_risk.get("label"),
+        "summary": str(summary),
+        "gold_technical": raw_risk.get("gold_technical"),
+        "usd_technical": raw_risk.get("usd_technical"),
+        "safe_haven_analysis": raw_risk.get("safe_haven_analysis"),
+        "contagion_analysis": str(contagion),
+        "oil_contagion": raw_risk.get("oil_contagion"),
+        "macro_context": raw_risk.get("macro_context"),
+        "crypto_contagion": crypto_raw,
+    }
+
+
+def _normalize_credit_payload(raw_credit: Any) -> Dict[str, Any]:
+    if not isinstance(raw_credit, dict):
+        raw_credit = {}
+
+    sectoral = raw_credit.get("sectoral_breakdown")
+    if not isinstance(sectoral, list):
+        sectoral = []
+
+    watchlist = raw_credit.get("watchlist")
+    if not isinstance(watchlist, list):
+        watchlist = []
+
+    # Ensure all required fields have proper defaults
+    mid_cap_icr = _to_float(raw_credit.get("mid_cap_avg_icr"), 0.0)
+    
+    return {
+        "mid_cap_avg_icr": mid_cap_icr,
+        "icr_alert": raw_credit.get("icr_alert"),
+        "icr_alert_note": raw_credit.get("icr_alert_note"),
+        "sectoral_breakdown": [item for item in sectoral if isinstance(item, dict)] or [{"sector": "N/A", "average_icr": 0.0}],
+        "pik_debt_issuance": str(raw_credit.get("pik_debt_issuance") or "N/A"),
+        "pik_debt_note": raw_credit.get("pik_debt_note"),
+        "cre_delinquency_rate": str(raw_credit.get("cre_delinquency_rate") or "N/A"),
+        "cre_delinquency_trend": raw_credit.get("cre_delinquency_trend"),
+        "mid_cap_hy_oas": str(raw_credit.get("mid_cap_hy_oas") or "N/A"),
+        "mid_cap_hy_oas_note": raw_credit.get("mid_cap_hy_oas_note"),
+        "cp_spreads": str(raw_credit.get("cp_spreads") or "N/A"),
+        "cp_spreads_note": raw_credit.get("cp_spreads_note"),
+        "vix_of_credit_cdx": str(raw_credit.get("vix_of_credit_cdx") or "N/A"),
+        "vix_of_credit_note": raw_credit.get("vix_of_credit_note"),
+        "alert": bool(raw_credit.get("alert", False)),
+        "watchlist": [item for item in watchlist if isinstance(item, dict)] or [],
+    }
+
+
+def _normalize_strategy_payload(raw_strategy: Any) -> Dict[str, Any]:
+    if not isinstance(raw_strategy, dict):
+        return {"events": [], "portfolio_suggestions": [], "risk_mitigation_steps": []}
+    events = raw_strategy.get("events")
+    suggestions = raw_strategy.get("portfolio_suggestions")
+    steps = raw_strategy.get("risk_mitigation_steps")
+    return {
+        "events": events if isinstance(events, list) else [],
+        "portfolio_suggestions": suggestions if isinstance(suggestions, list) else [],
+        "risk_mitigation_steps": steps if isinstance(steps, list) else [],
     }
 
 
@@ -360,9 +817,10 @@ async def stream_macro_dashboard(provider_name: str, skip_cache: bool = False) -
     message = "Using internal cloud knowledge." if state["is_cloud_provider"] else "Web research complete."
     yield json.dumps({"status": "routing", "message": message})
 
-    updates, section_status, raw_responses, failed_sections = await _run_parallel_sections(state)
+    updates, section_status, raw_responses, failed_sections, reasoning_list = await _run_parallel_sections(state)
     state.update(updates)
     state["raw_responses"].extend(raw_responses)
+    state["reasoning"] = "\n\n".join(reasoning_list)
 
     for section_name in _SECTION_NAMES:
         status_msg = (
@@ -372,7 +830,10 @@ async def stream_macro_dashboard(provider_name: str, skip_cache: bool = False) -
         )
         yield json.dumps({"status": "analysis_progress", "message": status_msg})
 
-    dashboard_model = aggregator_node(state)["dashboard_data"]
+    if reasoning_list:
+        yield json.dumps({"status": "thinking_complete", "message": "Thinking phase concluded.", "reasoning": state["reasoning"]})
+
+    dashboard_model = aggregator_node(state, reasoning_list)["dashboard_data"]
     raw_joined = "\n---\n".join(state.get("raw_responses", []))
 
     if len(failed_sections) == len(_SECTION_NAMES):
@@ -412,16 +873,17 @@ async def generate_macro_dashboard_async(provider_name: str, skip_cache: bool = 
     state = _build_initial_state(provider_name)
     state.update(await researcher_node(state))
 
-    updates, _, raw_responses, failed_sections = await _run_parallel_sections(state)
+    updates, _, raw_responses, failed_sections, reasoning_list = await _run_parallel_sections(state)
     state.update(updates)
     state["raw_responses"].extend(raw_responses)
+    state["reasoning"] = "\n\n".join(reasoning_list)
 
     if len(failed_sections) == len(_SECTION_NAMES):
         fallback_json = _load_fallback_dashboard()
         if fallback_json is not None:
             return MacroDashboardResponse.model_validate(fallback_json)
 
-    dashboard_model = aggregator_node(state)["dashboard_data"]
+    dashboard_model = aggregator_node(state, reasoning_list)["dashboard_data"]
     _save_cache(provider_name, dashboard_model.model_dump(), "\n---\n".join(state.get("raw_responses", [])))
     return dashboard_model
 

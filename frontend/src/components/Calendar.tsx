@@ -6,12 +6,16 @@ import type { MacroCalendar } from '../types';
 import { COLORS } from '../theme';
 import { Card, SectionTitle, Tag } from './UIAtoms';
 
-const CustomBarTooltip = ({ active, payload }: any) => {
-  if (active && payload?.length) {
+const CustomBarTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ payload: { bank: string }; value: number }> }) => {
+  if (active && payload && payload.length > 0) {
+    const first = payload[0];
+    if (!first) {
+      return null;
+    }
     return (
       <div style={{ background: COLORS.surfaceAlt, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "8px 12px" }}>
         <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: COLORS.text }}>
-          {payload[0].payload.bank}: <span style={{ color: COLORS.amber }}>{payload[0].value}</span>
+          {first.payload.bank}: <span style={{ color: COLORS.amber }}>{first.value}</span>
         </div>
       </div>
     );
@@ -23,9 +27,13 @@ export const Calendar: React.FC<{ data: MacroCalendar }> = ({ data }) => {
   const [activeTab, setActiveTab] = useState<"calendar" | "economic">("calendar");
 
   // Helper to extract numeric rate for the chart
-  const getNumericRate = (rateStr: string) => {
+  const getNumericRate = (rateStr?: string) => {
+    if (!rateStr) {
+      return 0;
+    }
     const match = rateStr.match(/(\d+(\.\d+)?)/);
-    return match ? parseFloat(match[1]) : 0;
+    const numeric = match?.[1];
+    return numeric ? parseFloat(numeric) : 0;
   };
 
   const chartData = data.rates.map(r => ({
@@ -72,6 +80,7 @@ export const Calendar: React.FC<{ data: MacroCalendar }> = ({ data }) => {
             <button 
               key={t} 
               onClick={() => setActiveTab(t)} 
+              aria-pressed={activeTab === t}
               style={{
                 padding: "4px 12px", borderRadius: 4, fontSize: 11,
                 fontFamily: "'DM Mono', monospace", letterSpacing: "0.05em",
@@ -88,7 +97,7 @@ export const Calendar: React.FC<{ data: MacroCalendar }> = ({ data }) => {
         </div>
 
         <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }} aria-label={activeTab === 'calendar' ? 'Central bank rate table' : 'Economic events table'}>
             <thead>
               <tr>
                 {activeTab === "calendar" ? (
@@ -121,7 +130,7 @@ export const Calendar: React.FC<{ data: MacroCalendar }> = ({ data }) => {
                       <Tag color={COLORS.cyan}>{row.next_date}</Tag>
                     </td>
                     <td style={{ padding: "10px 8px", fontFamily: "'DM Mono', monospace", fontSize: 11, color: COLORS.muted }}>{row.consensus || 'N/A'}</td>
-                    <td style={{ padding: "10px 8px", fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: COLORS.muted }}>{row.actual || '-'}</td>
+                    <td style={{ padding: "10px 8px", fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: COLORS.muted }}>{row.signal || row.actual || '-'}</td>
                   </tr>
                 ))
               )}
