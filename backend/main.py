@@ -41,6 +41,7 @@ app.add_middleware(
 
 class DashboardRequest(BaseModel):
     provider: str
+    skip_cache: bool = False
 
 @app.get("/api/status")
 def get_status():
@@ -65,9 +66,9 @@ async def cancel_dashboard():
 
 @app.post("/api/generate-dashboard", response_model=MacroDashboardResponse)
 async def create_dashboard(request: DashboardRequest):
-    logger.info(f"POST /api/generate-dashboard received. Provider: {request.provider}")
+    logger.info(f"POST /api/generate-dashboard received. Provider: {request.provider}, Skip Cache: {request.skip_cache}")
     try:
-        response = generate_macro_dashboard(request.provider)
+        response = generate_macro_dashboard(request.provider, skip_cache=request.skip_cache)
         logger.info("Dashboard generated successfully (non-streaming).")
         return response
     except Exception as e:
@@ -86,7 +87,7 @@ def latest_dashboard():
 
 @app.post("/api/stream-dashboard")
 async def stream_dashboard(request: DashboardRequest):
-    logger.info(f"POST /api/stream-dashboard received. Provider: {request.provider}")
+    logger.info(f"POST /api/stream-dashboard received. Provider: {request.provider}, Skip Cache: {request.skip_cache}")
     async def event_generator():
         global current_stream_task
         current_task = asyncio.current_task()
@@ -94,7 +95,7 @@ async def stream_dashboard(request: DashboardRequest):
             current_stream_task = current_task
 
         try:
-            async for chunk in stream_macro_dashboard(request.provider):
+            async for chunk in stream_macro_dashboard(request.provider, skip_cache=request.skip_cache):
                 yield f"data: {chunk}\n\n"
         except asyncio.CancelledError:
             logger.info("Streaming task was cancelled.")

@@ -37,6 +37,6 @@ export const MetricBig: React.FC<{ label: string, value: string | number, unit?:
       <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 36, color, letterSpacing: "0.02em", lineHeight: 1 }}>{value}</span>
       {unit && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 13, color: COLORS.muted }}>{unit}</span>}
     </div>
-    {sub && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: COLORS.muted }}>{sub}</div>}
+    {sub && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: COLORS.muted, marginTop: 4 }}>{sub}</div>}
   </div>
 );

@@ -102,11 +102,7 @@ class BytedanceProvider(LLMProvider):
             temperature=1.1,
             top_p=0.95,
             max_tokens=4096,
-            model_kwargs={
-                "extra_body": {
-                    "thinking_budget": -1
-                }
-            }
+            extra_body={"thinking_budget": -1}
         )
 
 class OllamaProvider(LLMProvider):

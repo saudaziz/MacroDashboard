@@ -26,6 +26,7 @@ function App() {
   const [llmRequestContent, setLlmRequestContent] = useState<string | null>(null);
   const [devStats, setDevStats] = useState<{ request_tokens?: number; response_tokens?: number; total_tokens?: number } | null>(null);
   const [abortController, setAbortController] = useState<AbortController | null>(null);
+  const [skipCache, setSkipCache] = useState(false);
 
   const addProgress = (message: string) => {
     setProgressLog((prev) => [...prev, `${new Date().toLocaleTimeString()}: ${message}`]);
@@ -99,7 +100,7 @@ function App() {
     setDevStats(null);
     setProgressLog([]);
     setStatus('Initializing agent...');
-    const requestPayloadJson = { provider };
+    const requestPayloadJson = { provider, skip_cache: skipCache };
     const requestPayload = JSON.stringify(requestPayloadJson, null, 2);
     const backendRequest = [
       `POST ${API_BASE_URL}/api/stream-dashboard`,
@@ -232,24 +233,38 @@ function App() {
             </div>
           )}
           
-          <div className="flex items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-full border border-slate-700">
-            <Settings size={14} className="text-slate-400" />
-            <select 
-              className="bg-transparent text-sm font-medium focus:outline-none cursor-pointer border-none"
-              value={provider}
-              onChange={(e) => setProvider(e.target.value)}
-              disabled={loading}
-            >
-              {providers.map((p) => (
-                <option key={p} value={p} className="bg-slate-900">
-                  {p === 'Ollama' ? 'Ollama (Gemma 4)' : 
-                   p === 'Gemini' ? 'Gemini 1.5 Flash' : 
-                   p === 'Claude' ? 'Claude 4.6 Sonnet' : 
-                   p === 'Nvidia' ? 'NVIDIA (Qwen 2.5)' : 
-                   p === 'Bytedance' ? 'Bytedance (Seed OSS)' : p}
-                </option>
-              ))}
-            </select>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-full border border-slate-700">
+              <Settings size={14} className="text-slate-400" />
+              <select 
+                className="bg-transparent text-sm font-medium focus:outline-none cursor-pointer border-none"
+                value={provider}
+                onChange={(e) => setProvider(e.target.value)}
+                disabled={loading}
+              >
+                {providers.map((p) => (
+                  <option key={p} value={p} className="bg-slate-900">
+                    {p === 'Ollama' ? 'Ollama (Gemma 4)' : 
+                     p === 'Gemini' ? 'Gemini 1.5 Flash' : 
+                     p === 'Claude' ? 'Claude 4.6 Sonnet' : 
+                     p === 'Nvidia' ? 'NVIDIA (Qwen 2.5)' : 
+                     p === 'Bytedance' ? 'Bytedance (Seed OSS)' : p}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="flex items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-full border border-slate-700">
+              <input 
+                type="checkbox" 
+                id="skip-cache"
+                checked={skipCache}
+                onChange={(e) => setSkipCache(e.target.checked)}
+                disabled={loading}
+                style={{ cursor: 'pointer', width: 14, height: 14 }}
+              />
+              <label htmlFor="skip-cache" style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: COLORS.muted, cursor: 'pointer', marginBottom: 0 }}>Fresh Data</label>
+            </div>
           </div>
           
           <button 
