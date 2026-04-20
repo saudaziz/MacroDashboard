@@ -10,3 +10,4 @@ duckduckgo-search
 pydantic
 httpx
 python-dotenv
+langchain-nvidia-ai-endpoints

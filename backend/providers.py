@@ -1,19 +1,25 @@
 import os
+import logging
 from abc import ABC, abstractmethod
 from typing import List, Optional, Tuple
 from langchain_anthropic import ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_ollama import ChatOllama
+from langchain_nvidia_ai_endpoints import ChatNVIDIA
 from langchain_core.language_models.chat_models import BaseChatModel
 from dotenv import load_dotenv
 
-load_dotenv()
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger("Providers")
 
+load_dotenv()
 
 def _get_env_var(names: list[str]) -> Tuple[Optional[str], Optional[str]]:
     for name in names:
         value = os.getenv(name)
         if value:
+            logger.info(f"Loaded environment variable: {name}")
             return value, name
     return None, None
 
@@ -25,17 +31,15 @@ class LLMProvider(ABC):
 
 class GeminiProvider(LLMProvider):
     def get_model(self) -> BaseChatModel:
-        # Prioritize picking key directly from the environment
+        logger.info("Initializing Gemini Provider...")
         api_key, key_name = _get_env_var(["GOOGLE_API_KEY", "GEMINI_API_KEY"])
         if not api_key:
-            raise ValueError(
-                "Neither GOOGLE_API_KEY nor GEMINI_API_KEY is set in your environment. "
-                "Please set it using '$env:GOOGLE_API_KEY=\"your_key_here\"' in PowerShell."
-            )
+            error_msg = "Neither GOOGLE_API_KEY nor GEMINI_API_KEY is set in your environment."
+            logger.error(error_msg)
+            raise ValueError(error_msg)
         
-        # Use a supported Gemini model by default; allow override via environment
         model_name = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
-        max_output_tokens = int(os.getenv("GEMINI_MAX_OUTPUT_TOKENS", "1024"))
+        logger.info(f"Using Gemini model: {model_name}")
         
         return ChatGoogleGenerativeAI(
             model=model_name,
@@ -43,27 +47,46 @@ class GeminiProvider(LLMProvider):
             max_retries=10,
             timeout=180,
             temperature=0.0,
-            max_output_tokens=max_output_tokens,
         )
 
 class ClaudeProvider(LLMProvider):
     def get_model(self) -> BaseChatModel:
-        # Prioritize picking key directly from the environment
+        logger.info("Initializing Claude Provider...")
         api_key, key_name = _get_env_var(["ANTHROPIC_API_KEY", "CLAUDE_API_KEY"])
         if not api_key:
-            raise ValueError(
-                "Neither ANTHROPIC_API_KEY nor CLAUDE_API_KEY is set in your environment. "
-                "Please set it in your shell environment variables to keep it secure."
-            )
-        return ChatAnthropic(model_name="claude-3-haiku-20240307", anthropic_api_key=api_key)
+            error_msg = "Neither ANTHROPIC_API_KEY nor CLAUDE_API_KEY is set in your environment."
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+            
+        model_name = "claude-3-haiku-20240307"
+        logger.info(f"Using Claude model: {model_name}")
+        return ChatAnthropic(model_name=model_name, anthropic_api_key=api_key)
+
+class NvidiaProvider(LLMProvider):
+    def get_model(self) -> BaseChatModel:
+        logger.info("Initializing Nvidia Provider...")
+        api_key, key_name = _get_env_var(["NVIDIA_API_KEY"])
+        if not api_key:
+            error_msg = "NVIDIA_API_KEY is not set in your environment."
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+            
+        model_name = os.getenv("NVIDIA_MODEL", "qwen/qwen2.5-coder-32b-instruct")
+        logger.info(f"Using Nvidia model: {model_name}")
+        
+        return ChatNVIDIA(
+            model=model_name,
+            api_key=api_key,
+            temperature=0.2,
+            top_p=0.7,
+            max_tokens=1024,
+        )
 
 class OllamaProvider(LLMProvider):
     def get_model(self) -> BaseChatModel:
-        # Allow overriding via environment variables for remote Ollama instances
         base_url = os.getenv("OLLAMA_BASE_URL", "http://192.168.68.190:11434")
         model_name = os.getenv("OLLAMA_MODEL", "gemma4")
-
-        print(f"DEBUG: Connecting to Ollama at {base_url} with model {model_name}")
+        logger.info(f"Initializing Ollama Provider at {base_url} with model {model_name}...")
         return ChatOllama(base_url=base_url, model=model_name)
 
 from langchain_core.messages import BaseMessage, AIMessage
@@ -79,14 +102,18 @@ class MockProvider(LLMProvider):
         return MockModel()
 
 def get_provider(provider_name: str) -> LLMProvider:
-    if provider_name.lower() == "gemini":
+    logger.info(f"Fetching provider: {provider_name}")
+    pn = provider_name.lower()
+    if pn == "gemini":
         return GeminiProvider()
-    elif provider_name.lower() == "claude":
+    elif pn == "claude":
         return ClaudeProvider()
-    elif provider_name.lower() == "ollama":
+    elif pn == "nvidia":
+        return NvidiaProvider()
+    elif pn == "ollama":
         return OllamaProvider()
-    elif provider_name.lower() == "mock":
+    elif pn == "mock":
         return MockProvider()
     else:
-        # Default to Ollama
+        logger.warning(f"Unknown provider '{provider_name}', defaulting to Ollama.")
         return OllamaProvider()
