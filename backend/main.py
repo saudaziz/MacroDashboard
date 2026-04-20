@@ -48,7 +48,7 @@ def get_status():
 
 @app.get("/api/providers")
 def get_providers():
-    return ["Claude", "Gemini", "Nvidia", "Ollama"]
+    return ["Claude", "Gemini", "Nvidia", "Bytedance", "Ollama"]
 
 @app.post("/api/cancel-dashboard")
 async def cancel_dashboard():

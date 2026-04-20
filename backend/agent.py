@@ -90,7 +90,7 @@ class AgentState(TypedDict):
 # --- Helper Functions ---
 
 def _is_cloud(provider_name: str) -> bool:
-    return provider_name.lower() in ["gemini", "claude", "nvidia"]
+    return provider_name.lower() in ["gemini", "claude", "nvidia", "bytedance"]
 
 def _get_throttle_time(provider_name: str) -> float:
     """Returns delay in seconds to avoid 429s on Free tiers."""

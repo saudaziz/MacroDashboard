@@ -3,7 +3,7 @@ import json
 
 def test_stream():
     url = 'http://127.0.0.1:8000/api/stream-dashboard'
-    data = {'provider': 'Nvidia'}
+    data = {'provider': 'Bytedance'}
     
     with httpx.stream('POST', url, json=data, timeout=300.0) as response:
         for line in response.iter_lines():

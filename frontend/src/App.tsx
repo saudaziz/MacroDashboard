@@ -245,7 +245,8 @@ function App() {
                   {p === 'Ollama' ? 'Ollama (Gemma 4)' : 
                    p === 'Gemini' ? 'Gemini 1.5 Flash' : 
                    p === 'Claude' ? 'Claude 4.6 Sonnet' : 
-                   p === 'Nvidia' ? 'NVIDIA (Qwen 2.5)' : p}
+                   p === 'Nvidia' ? 'NVIDIA (Qwen 2.5)' : 
+                   p === 'Bytedance' ? 'Bytedance (Seed OSS)' : p}
                 </option>
               ))}
             </select>
@@ -336,34 +337,40 @@ function App() {
             </div>
 
             {/* BOTTOM ROW */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
-              <EventsFeed events={data.events} />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, width: "100%", overflow: "hidden" }}>
+              <div style={{ minWidth: 0 }}>
+                <EventsFeed events={data.events} />
+              </div>
               
-              <Card>
-                <SectionTitle>Safe-Haven & Technicals</SectionTitle>
-                <div style={{ marginBottom: 16 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                    <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: COLORS.amber, letterSpacing: "0.1em" }}>CONTAGION ANALYSIS</span>
-                    <Shield size={14} color={COLORS.amber} />
+              <div style={{ minWidth: 0 }}>
+                <Card>
+                  <SectionTitle>Safe-Haven & Technicals</SectionTitle>
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: COLORS.amber, letterSpacing: "0.1em" }}>CONTAGION ANALYSIS</span>
+                      <Shield size={14} color={COLORS.amber} />
+                    </div>
+                    <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: COLORS.muted, lineHeight: 1.5 }}>
+                      {data.risk.contagion_analysis}
+                    </p>
                   </div>
-                  <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: COLORS.muted, lineHeight: 1.5 }}>
-                    {data.risk.contagion_analysis}
-                  </p>
-                </div>
-                <div style={{ height: 1, background: COLORS.border, margin: "14px 0" }} />
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  <div className="flex justify-between">
-                    <span className="text-[10px] font-mono text-slate-500 uppercase">Gold Technicals</span>
-                    <Tag color={COLORS.amber}>{data.risk.gold_technical || 'N/A'}</Tag>
+                  <div style={{ height: 1, background: COLORS.border, margin: "14px 0" }} />
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, overflow: "hidden" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: COLORS.muted, textTransform: "uppercase", flex: 1, wordBreak: "break-word", lineHeight: 1.4 }}>Gold Technicals</span>
+                      <Tag color={COLORS.amber} style={{ flexShrink: 0 }}>{data.risk.gold_technical || 'N/A'}</Tag>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: COLORS.muted, textTransform: "uppercase", flex: 1, wordBreak: "break-word", lineHeight: 1.4 }}>USD Strength</span>
+                      <Tag color={COLORS.cyan} style={{ flexShrink: 0 }}>{data.risk.usd_technical || 'N/A'}</Tag>
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-[10px] font-mono text-slate-500 uppercase">USD Strength</span>
-                    <Tag color={COLORS.cyan}>{data.risk.usd_technical || 'N/A'}</Tag>
-                  </div>
-                </div>
-              </Card>
+                </Card>
+              </div>
 
-              <PortfolioAdvice suggestions={data.portfolio_suggestions} risks={data.risk_mitigation_steps} />
+              <div style={{ minWidth: 0 }}>
+                <PortfolioAdvice suggestions={data.portfolio_suggestions} risks={data.risk_mitigation_steps} />
+              </div>
             </div>
 
             <footer className="text-center pt-12 pb-12 text-slate-600 text-[9px] uppercase tracking-[0.3em] font-mono">

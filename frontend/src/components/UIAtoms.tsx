@@ -1,11 +1,11 @@
 import React from 'react';
 import { COLORS } from '../theme';
 
-export const Tag: React.FC<{ children: React.ReactNode, color: string }> = ({ children, color }) => (
+export const Tag: React.FC<{ children: React.ReactNode, color: string, style?: React.CSSProperties }> = ({ children, color, style = {} }) => (
   <span style={{
     background: `${color}22`, color, border: `1px solid ${color}44`,
     borderRadius: 4, padding: "2px 8px", fontSize: 11, fontFamily: "monospace",
-    letterSpacing: "0.05em", fontWeight: 700, whiteSpace: "nowrap"
+    letterSpacing: "0.05em", fontWeight: 700, whiteSpace: "nowrap", ...style
   }}>
     {children}
   </span>

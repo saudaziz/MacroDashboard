@@ -6,6 +6,7 @@ from langchain_anthropic import ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_ollama import ChatOllama
 from langchain_nvidia_ai_endpoints import ChatNVIDIA
+from langchain_openai import ChatOpenAI
 from langchain_core.language_models.chat_models import BaseChatModel
 from dotenv import load_dotenv
 
@@ -82,6 +83,32 @@ class NvidiaProvider(LLMProvider):
             max_tokens=1024,
         )
 
+class BytedanceProvider(LLMProvider):
+    def get_model(self) -> BaseChatModel:
+        logger.info("Initializing Bytedance Provider (via NVIDIA)...")
+        api_key, key_name = _get_env_var(["BYTEDANCE_API_KEY"])
+        if not api_key:
+            error_msg = "BYTEDANCE_API_KEY is not set in your environment."
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+            
+        model_name = os.getenv("BYTEDANCE_MODEL", "bytedance/seed-oss-36b-instruct")
+        logger.info(f"Using Bytedance model: {model_name}")
+        
+        return ChatOpenAI(
+            model=model_name,
+            api_key=api_key,
+            base_url="https://integrate.api.nvidia.com/v1",
+            temperature=1.1,
+            top_p=0.95,
+            max_tokens=4096,
+            model_kwargs={
+                "extra_body": {
+                    "thinking_budget": -1
+                }
+            }
+        )
+
 class OllamaProvider(LLMProvider):
     def get_model(self) -> BaseChatModel:
         base_url = os.getenv("OLLAMA_BASE_URL", "http://192.168.68.190:11434")
@@ -110,6 +137,8 @@ def get_provider(provider_name: str) -> LLMProvider:
         return ClaudeProvider()
     elif pn == "nvidia":
         return NvidiaProvider()
+    elif pn == "bytedance":
+        return BytedanceProvider()
     elif pn == "ollama":
         return OllamaProvider()
     elif pn == "mock":
