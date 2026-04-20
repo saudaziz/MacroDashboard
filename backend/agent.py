@@ -15,9 +15,11 @@ from langchain_core.messages import HumanMessage
 try:
     from backend.logging_config import configure_logging
     from backend.runtime_paths import CACHE_DIR, LATEST_DASHBOARD_PATH
+    from backend.autogen_researcher import run_autogen_research
 except ImportError:
     from logging_config import configure_logging
     from runtime_paths import CACHE_DIR, LATEST_DASHBOARD_PATH
+    from autogen_researcher import run_autogen_research
 
 configure_logging()
 logger = logging.getLogger("AgentOrchestrator")

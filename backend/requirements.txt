@@ -12,4 +12,7 @@ httpx
 python-dotenv
 langchain-nvidia-ai-endpoints
 langchain-openai
+langgraph
+pyautogen>=0.10.0
+autogen-ext[openai]
 pytest
