@@ -1,6 +1,6 @@
 # MacroDashboard
 
-A professional-grade, agentic macro-economic dashboard that leverages **LangGraph**, **Microsoft AutoGen**, **FastAPI**, and **React** to perform autonomous real-time research and deliver high-precision financial insights.
+A high-frequency macroeconomic intelligence platform that synthesizes fragmented global market data—including economic calendars, credit stress indicators, and liquidity signals—into a unified real-time dashboard. Engineered with an autonomous multi-agent research layer to perform deep-dive analysis on emerging market trends, replacing manual data aggregation with automated, LLM-driven insights.
 
 ## 🚀 Key Features
 - **Hybrid Multi-Agent Orchestration:** Combines **LangGraph** (for deterministic workflow control) with **Microsoft AutoGen** (for autonomous, self-correcting research teams).
@@ -49,6 +49,7 @@ A professional-grade, agentic macro-economic dashboard that leverages **LangGrap
 ### Frontend (Dashboard)
 - **Framework:** React 19 + TypeScript 6.
 - **Styling:** **Tailwind CSS v4** (using native `@tailwindcss/vite`).
+- **Data Visualization:** Recharts.
 - **Icons:** Lucide React.
 - **State Management:** Custom `useDashboard` hook with streaming `ReadableStream` integration.
 
