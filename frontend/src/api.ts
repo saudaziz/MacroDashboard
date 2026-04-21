@@ -39,6 +39,14 @@ export async function cancelDashboard(): Promise<void> {
   await fetchJson('/api/cancel-dashboard', { method: 'POST' });
 }
 
+export async function resumeWorkflow(decision: 'approved' | 'rejected'): Promise<void> {
+  await fetchJson('/api/resume-workflow', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ decision }),
+  });
+}
+
 export async function* streamDashboard(
   payload: StreamRequest,
   signal: AbortSignal,

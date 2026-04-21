@@ -6,8 +6,9 @@ import {
   getProviders,
   streamDashboard,
   validateDashboardData,
+  resumeWorkflow,
 } from '../api';
-import type { MacroDashboardResponse, TokenStats } from '../types';
+import type { MacroDashboardResponse, TokenStats, Interrupt } from '../types';
 
 const DEFAULT_PROVIDER = 'Bytedance Seed';
 const DEFAULT_PROVIDERS = [
@@ -34,6 +35,9 @@ export interface DashboardState {
   requestContent: string;
   llmRequestContent: string | null;
   devStats: TokenStats | null;
+  activeAgent: string | null;
+  agentTrace: { agent: string; message: string; timestamp: string }[];
+  interrupt: Interrupt | null;
 }
 
 export interface DashboardActions {
@@ -41,6 +45,7 @@ export interface DashboardActions {
   setSkipCache: (skipCache: boolean) => void;
   fetchDashboard: () => Promise<void>;
   cancelDashboardRequest: () => Promise<void>;
+  handleInterrupt: (decision: 'approved' | 'rejected') => Promise<void>;
 }
 
 export function useDashboard(): DashboardState & DashboardActions {
@@ -57,6 +62,9 @@ export function useDashboard(): DashboardState & DashboardActions {
   const [requestContent, setRequestContent] = useState('');
   const [llmRequestContent, setLlmRequestContent] = useState<string | null>(null);
   const [devStats, setDevStats] = useState<TokenStats | null>(null);
+  const [activeAgent, setActiveAgent] = useState<string | null>(null);
+  const [agentTrace, setAgentTrace] = useState<{ agent: string; message: string; timestamp: string }[]>([]);
+  const [interrupt, setInterrupt] = useState<Interrupt | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const addProgress = useCallback((message: string) => {
@@ -64,6 +72,13 @@ export function useDashboard(): DashboardState & DashboardActions {
       const next = [...prev, `${new Date().toLocaleTimeString()}: ${message}`];
       return next.length > MAX_PROGRESS_LOG ? next.slice(next.length - MAX_PROGRESS_LOG) : next;
     });
+  }, []);
+
+  const addTrace = useCallback((agent: string, message: string) => {
+    setAgentTrace((prev) => [
+      ...prev,
+      { agent, message, timestamp: new Date().toLocaleTimeString() },
+    ]);
   }, []);
 
   useEffect(() => {
@@ -137,6 +152,12 @@ export function useDashboard(): DashboardState & DashboardActions {
     }
   }, [addProgress]);
 
+  const handleInterrupt = useCallback(async (decision: 'approved' | 'rejected') => {
+    setInterrupt(null);
+    addProgress(`User ${decision}ed the interrupt.`);
+    await resumeWorkflow(decision);
+  }, [addProgress]);
+
   const fetchDashboard = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -146,6 +167,9 @@ export function useDashboard(): DashboardState & DashboardActions {
     setLlmRequestContent(null);
     setDevStats(null);
     setProgressLog([]);
+    setAgentTrace([]);
+    setActiveAgent(null);
+    setInterrupt(null);
     setStatus('Initializing agent...');
 
     setRequestContent(createBackendRequestPreview(provider, skipCache));
@@ -160,6 +184,39 @@ export function useDashboard(): DashboardState & DashboardActions {
         if (payload.message) {
           setStatus(payload.message);
           addProgress(payload.message);
+        }
+
+        if (payload.status === 'agent_step') {
+          setActiveAgent(payload.agent ?? 'Unknown');
+        }
+
+        if (payload.status === 'agent_message') {
+          addTrace(payload.agent ?? 'Unknown', payload.message ?? '');
+        }
+
+        if (payload.status === 'interrupt') {
+          setInterrupt({
+            agent: payload.agent ?? 'System',
+            message: payload.message ?? 'Intervention required.',
+            data: (payload as any).data
+          });
+        }
+
+        if (payload.status === 'snapshot') {
+           // Partial data update
+           setData(prev => {
+             const updated = { ...(prev || {}) } as MacroDashboardResponse;
+             if (payload.section === 'calendar') updated.calendar = payload.data as any;
+             if (payload.section === 'risk') updated.risk = payload.data as any;
+             if (payload.section === 'credit') updated.credit = payload.data as any;
+             // Events and suggestions come in the strategy section
+             if (payload.section === 'strategy') {
+                updated.events = (payload.data as any).events || [];
+                updated.portfolio_suggestions = (payload.data as any).portfolio_suggestions || [];
+                updated.risk_mitigation_steps = (payload.data as any).risk_mitigation_steps || [];
+             }
+             return updated;
+           });
         }
 
         if (payload.llm_request) {
@@ -187,6 +244,7 @@ export function useDashboard(): DashboardState & DashboardActions {
           if (validated.reasoning) {
             setReasoning(validated.reasoning);
           }
+          setActiveAgent(null);
           setLoading(false);
         } else if (payload.status === 'error') {
           setError(payload.message ?? 'Unknown stream error');
@@ -208,7 +266,7 @@ export function useDashboard(): DashboardState & DashboardActions {
       abortControllerRef.current = null;
       setLoading(false);
     }
-  }, [addProgress, provider, skipCache]);
+  }, [addProgress, addTrace, provider, skipCache]);
 
   return useMemo(
     () => ({
@@ -225,10 +283,14 @@ export function useDashboard(): DashboardState & DashboardActions {
       requestContent,
       llmRequestContent,
       devStats,
+      activeAgent,
+      agentTrace,
+      interrupt,
       setProvider,
       setSkipCache,
       fetchDashboard,
       cancelDashboardRequest,
+      handleInterrupt,
     }),
     [
       data,
@@ -244,8 +306,12 @@ export function useDashboard(): DashboardState & DashboardActions {
       requestContent,
       llmRequestContent,
       devStats,
+      activeAgent,
+      agentTrace,
+      interrupt,
       fetchDashboard,
       cancelDashboardRequest,
+      handleInterrupt,
     ],
   );
 }

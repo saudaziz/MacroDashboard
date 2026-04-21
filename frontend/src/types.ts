@@ -137,6 +137,22 @@ export interface LatestDashboardPayload {
   token_stats?: TokenStats;
 }
 
+export interface AgentStep {
+  agent: string;
+  message: string;
+}
+
+export interface AgentMessage {
+  agent: string;
+  message: string;
+}
+
+export interface Interrupt {
+  agent: string;
+  message: string;
+  data?: any;
+}
+
 export interface StreamStatusPayload {
   status: string;
   message?: string;
@@ -145,4 +161,7 @@ export interface StreamStatusPayload {
   llm_request?: string;
   reasoning?: string | null;
   token_stats?: TokenStats;
+  agent?: string;
+  section?: string;
+  interrupt?: Interrupt;
 }

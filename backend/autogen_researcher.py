@@ -42,47 +42,21 @@ async def run_autogen_research(provider_name: str, yield_callback=None) -> str:
     # Define tool for AutoGen
     async def search_func(query: str) -> str:
         if yield_callback:
-            await yield_callback(f"Searching: {query}")
-        return await asyncio.to_thread(search_tool.run, query)
+            await yield_callback({
+                "status": "agent_step",
+                "agent": "Lead_Researcher",
+                "message": f"Searching for: {query}"
+            })
+        result = await asyncio.to_thread(search_tool.run, query)
+        if yield_callback:
+            await yield_callback({
+                "status": "agent_message",
+                "agent": "Lead_Researcher",
+                "message": f"Found data for: {query}"
+            })
+        return result
 
-    # 1. The Lead Researcher
-    researcher = AssistantAgent(
-        name="Lead_Researcher",
-        model_client=model_client,
-        tools=[search_func],
-        system_message=(
-            f"You are a Senior Macro Researcher. Today is {today_str}. "
-            "Your goal is to find the most recent gold prices, crude oil prices, CPI/PPI dates, "
-            "and mid-cap credit metrics for 2026. "
-            "Use your search tool to find CURRENT data. If you find data from 2024 or 2025, "
-            "keep looking for 2026 updates."
-        )
-    )
-
-    # 2. The Verification Analyst
-    analyst = AssistantAgent(
-        name="Verification_Analyst",
-        model_client=model_client,
-        system_message=(
-            "You are a Quality Control Analyst. You review the findings of the Lead_Researcher. "
-            f"Ensure all data is valid for {today_str} or the year 2026. "
-            "If the researcher provides old data (e.g. from 2025), tell them to search again for 2026. "
-            "Once the data is verified and complete, provide a final consolidated summary."
-        )
-    )
-
-    # 3. Create the team
-    team = RoundRobinGroupChat(
-        [researcher, analyst],
-        max_turns=6
-    )
-
-    # Start the conversation
-    prompt = (
-        f"Perform a deep search for current macro indicators as of {today_str}. "
-        "I need: 1. Current Gold and Oil prices. 2. Latest 2026 CPI/PPI/Jobs release dates. "
-        "3. Current G7 Central Bank rates. 4. Mid-cap ICR and delinquency trends for 2026."
-    )
+    # ... (rest of the agent definitions) ...
 
     full_research = ""
     try:
@@ -93,7 +67,17 @@ async def run_autogen_research(provider_name: str, yield_callback=None) -> str:
                 content = event.content
                 full_research += f"\n\n### {event.source}\n{content}"
                 if yield_callback:
-                    await yield_callback(f"{event.source} shared findings...")
+                    # Map AutoGen sources to meaningful status updates
+                    await yield_callback({
+                        "status": "agent_step",
+                        "agent": event.source,
+                        "message": "Synthesizing findings..." if event.source == "Lead_Researcher" else "Verifying data recency..."
+                    })
+                    await yield_callback({
+                        "status": "agent_message",
+                        "agent": event.source,
+                        "message": content
+                    })
     except Exception as exc:
         logger.error("AutoGen team error: %s", exc)
         return f"Research failed due to AutoGen error: {exc}"

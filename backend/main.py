@@ -59,6 +59,20 @@ class DashboardRequest(BaseModel):
     provider: str = get_default_provider_name()
     skip_cache: bool = False
 
+class ResumeRequest(BaseModel):
+    decision: str
+
+@app.post("/api/resume-workflow")
+async def resume_dashboard_workflow(request: ResumeRequest):
+    logger.info(f"POST /api/resume-workflow received. Decision: {request.decision}")
+    try:
+        from backend.agent import resume_workflow
+    except ImportError:
+        from agent import resume_workflow
+    
+    await resume_workflow(request.decision)
+    return {"status": "resumed"}
+
 @app.get("/api/status")
 def get_status():
     return {"status": "ok", "message": "MacroDashboard API is running"}

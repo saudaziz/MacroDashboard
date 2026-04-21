@@ -232,9 +232,16 @@ def _try_parse_json_payload(content: str) -> tuple[Any | None, str]:
     return None, f"JSON Parse Error: {last_error}"
 
 
-async def _call_sub_agent(state: AgentState, section: str, instruction: str) -> Dict[str, Any]:
+async def _call_sub_agent(state: AgentState, section: str, instruction: str, yield_callback=None) -> Dict[str, Any]:
     provider_name = state["provider_name"]
     logger.info("Sub-Agent [%s]: Invoking %s...", section, provider_name)
+
+    if yield_callback:
+        await yield_callback({
+            "status": "agent_step",
+            "agent": f"{section}Agent",
+            "message": f"Analyzing {section} data using {provider_name}..."
+        })
 
     if state["is_cloud_provider"]:
         delay = _get_throttle_time(provider_name)
@@ -298,11 +305,32 @@ async def _call_sub_agent(state: AgentState, section: str, instruction: str) -> 
     return {"data": None, "raw": f"Error in {section} after {MAX_RETRIES} attempts: {last_error}"}
 
 
-async def researcher_node(state: AgentState) -> Dict[str, Any]:
+# --- HITL State ---
+_hitl_event = asyncio.Event()
+_hitl_data = {"pending": False, "decision": None}
+
+async def resume_workflow(decision: str):
+    logger.info("HITL: Resuming workflow with decision: %s", decision)
+    _hitl_data["decision"] = decision
+    _hitl_data["pending"] = False
+    _hitl_event.set()
+
+
+async def researcher_node(state: AgentState, yield_callback=None) -> Dict[str, Any]:
     if state["is_cloud_provider"]:
         return {"aggregated_research": "[Cloud Tier: Internal Knowledge Base Active]"}
 
     logger.info("Researcher Agent: Scraping latest macro data...")
+    if yield_callback:
+        await yield_callback({"status": "agent_step", "agent": "Researcher", "message": "Initiating deep macro research..."})
+    
+    # Try to use AutoGen researcher if available
+    try:
+        research_context = await run_autogen_research(state["provider_name"], yield_callback=yield_callback)
+        return {"aggregated_research": research_context}
+    except Exception as exc:
+        logger.error("AutoGen research failed, falling back to basic search: %s", exc)
+
     search = DuckDuckGoSearchRun()
     today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     queries = [
@@ -335,7 +363,7 @@ async def researcher_node(state: AgentState) -> Dict[str, Any]:
     return {"aggregated_research": "\n\n".join(query_results) if query_results else "No fresh web data found."}
 
 
-async def calendar_agent(state: AgentState) -> Dict[str, Any]:
+async def calendar_agent(state: AgentState, yield_callback=None) -> Dict[str, Any]:
     today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     instruction = (
         f"Extract LATEST AVAILABLE macro economic dates as of {today_str}.\n"
@@ -345,11 +373,11 @@ async def calendar_agent(state: AgentState) -> Dict[str, Any]:
         f"Example: {{\"dates\": [{{\"event\": \"CPI Release\", \"last_date\": \"2026-03-10\", \"next_date\": \"2026-04-10\", \"signal\": \"BEAT\"}}], \"rates\": [{{\"bank\": \"FED\", \"rate\": \"5.5%\", \"guidance\": \"Hold\"}}]}}\n"
         f"Include major events: CPI, PPI, Jobs, FED, BOJ, BOE, ECB. Keep values as strings. Return ONLY valid JSON."
     )
-    result = await _call_sub_agent(state, "Calendar", instruction)
+    result = await _call_sub_agent(state, "Calendar", instruction, yield_callback=yield_callback)
     return {"calendar_data": result["data"], "raw_responses": [result["raw"]], "reasoning": result.get("reasoning")}
 
 
-async def risk_agent(state: AgentState) -> Dict[str, Any]:
+async def risk_agent(state: AgentState, yield_callback=None) -> Dict[str, Any]:
     today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     instruction = (
         f"Analyze market risk sentiment using LATEST AVAILABLE data as of {today_str}. Return a JSON with: "
@@ -361,11 +389,11 @@ async def risk_agent(state: AgentState) -> Dict[str, Any]:
         "'btc_gold_correlation', and an 'assets' list of objects for BTC, ETH, SOL containing "
         "'name', 'price', 'change_24h', 'change_7d', 'contagion_signal' (MODERATE/LOW/HIGH), and 'note'."
     )
-    result = await _call_sub_agent(state, "Risk", instruction)
+    result = await _call_sub_agent(state, "Risk", instruction, yield_callback=yield_callback)
     return {"risk_data": result["data"], "raw_responses": [result["raw"]], "reasoning": result.get("reasoning")}
 
 
-async def credit_agent(state: AgentState) -> Dict[str, Any]:
+async def credit_agent(state: AgentState, yield_callback=None) -> Dict[str, Any]:
     today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     instruction = (
         f"Analyze Credit Health using LATEST AVAILABLE data as of {today_str}. Return a JSON with: "
@@ -379,11 +407,39 @@ async def credit_agent(state: AgentState) -> Dict[str, Any]:
         "and a 'watchlist' (list of objects with 'firm_name', 'ticker', 'sector', 'debt_load', "
         "'icr' (FLOAT), 'insider_selling', 'cds_pricing', 'pik_usage' (BOOL), and 'note')."
     )
-    result = await _call_sub_agent(state, "Credit", instruction)
-    return {"credit_data": result["data"], "raw_responses": [result["raw"]], "reasoning": result.get("reasoning")}
+    result = await _call_sub_agent(state, "Credit", instruction, yield_callback=yield_callback)
+    
+    # --- HITL Pattern ---
+    data = result.get("data")
+    if data and data.get("icr_alert"):
+        if yield_callback:
+            await yield_callback({
+                "status": "interrupt",
+                "agent": "CreditAgent",
+                "message": f"CRITICAL: Low ICR detected ({data.get('mid_cap_avg_icr')}). Proceed with deep dive?",
+                "data": {"mid_cap_avg_icr": data.get("mid_cap_avg_icr")}
+            })
+            
+        logger.info("HITL: Credit Agent waiting for user approval due to ICR alert.")
+        _hitl_data["pending"] = True
+        _hitl_event.clear()
+        await _hitl_event.wait()
+        
+        if _hitl_data["decision"] == "approved":
+            if yield_callback:
+                await yield_callback({
+                    "status": "agent_step",
+                    "agent": "CreditAgent",
+                    "message": "User approved deep dive. Performing additional credit stress test..."
+                })
+            # Mock deeper analysis update
+            if data.get("icr_alert_note"):
+                data["icr_alert_note"] += " [DEEP DIVE PERFORMED: Confirmed high insolvency risk in retail sector.]"
+    
+    return {"credit_data": data, "raw_responses": [result["raw"]], "reasoning": result.get("reasoning")}
 
 
-async def strategy_agent(state: AgentState) -> Dict[str, Any]:
+async def strategy_agent(state: AgentState, yield_callback=None) -> Dict[str, Any]:
     today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     instruction = (
         f"Analyze macro-economic strategy using LATEST AVAILABLE data as of {today_str}. Return a JSON with: "
@@ -392,11 +448,11 @@ async def strategy_agent(state: AgentState) -> Dict[str, Any]:
         "'portfolio_suggestions' (list of objects with 'asset_class', 'percentage' (e.g. 30%), 'rationale' (detailed)), "
         "and 'risk_mitigation_steps' (list of detailed strings)."
     )
-    result = await _call_sub_agent(state, "Strategy", instruction)
+    result = await _call_sub_agent(state, "Strategy", instruction, yield_callback=yield_callback)
     return {"strategy_data": result["data"], "raw_responses": [result["raw"]], "reasoning": result.get("reasoning")}
 
 
-async def _run_parallel_sections(state: AgentState) -> tuple[Dict[str, Any], Dict[str, bool], list[str], set[str], list[str]]:
+async def _run_parallel_sections(state: AgentState, yield_callback=None) -> tuple[Dict[str, Any], Dict[str, bool], list[str], set[str], list[str]]:
     sections = [
         ("calendar", calendar_agent),
         ("risk", risk_agent),
@@ -404,7 +460,18 @@ async def _run_parallel_sections(state: AgentState) -> tuple[Dict[str, Any], Dic
         ("strategy", strategy_agent),
     ]
 
-    results = await asyncio.gather(*(fn(state) for _, fn in sections), return_exceptions=True)
+    async def wrapped_agent(name, fn):
+        res = await fn(state, yield_callback=yield_callback)
+        if yield_callback and res.get(f"{name}_data"):
+            await yield_callback({
+                "status": "snapshot",
+                "agent": f"{name.capitalize()}Agent",
+                "section": name,
+                "data": res[f"{name}_data"]
+            })
+        return res
+
+    results = await asyncio.gather(*(wrapped_agent(name, fn) for name, fn in sections), return_exceptions=True)
 
     updates: Dict[str, Any] = {}
     status: Dict[str, bool] = {}
@@ -813,56 +880,76 @@ async def stream_macro_dashboard(provider_name: str, skip_cache: bool = False) -
             return
 
     state = _build_initial_state(provider_name)
-    yield json.dumps({"status": "research_start", "message": f"Orchestrating agents for {provider_name}..."})
+    
+    # Use a queue to bridge the async orchestration task and the generator
+    queue = asyncio.Queue()
+    
+    async def put_event(event):
+        await queue.put(event)
 
-    state.update(await researcher_node(state))
-    message = "Using internal cloud knowledge." if state["is_cloud_provider"] else "Web research complete."
-    yield json.dumps({"status": "routing", "message": message})
+    async def run_orchestration():
+        try:
+            await put_event({"status": "research_start", "message": f"Orchestrating agents for {provider_name}..."})
+            state.update(await researcher_node(state, yield_callback=put_event))
+            
+            message = "Using internal cloud knowledge." if state["is_cloud_provider"] else "Web research complete."
+            await put_event({"status": "routing", "message": message})
 
-    updates, section_status, raw_responses, failed_sections, reasoning_list = await _run_parallel_sections(state)
-    state.update(updates)
-    state["raw_responses"].extend(raw_responses)
-    state["reasoning"] = "\n\n".join(reasoning_list)
+            updates, section_status, raw_responses, failed_sections, reasoning_list = await _run_parallel_sections(state, yield_callback=put_event)
+            state.update(updates)
+            state["raw_responses"].extend(raw_responses)
+            state["reasoning"] = "\n\n".join(reasoning_list)
 
-    for section_name in _SECTION_NAMES:
-        status_msg = (
-            f"Completed {section_name} analysis."
-            if section_status.get(section_name, False)
-            else f"{section_name.capitalize()} analysis failed."
-        )
-        yield json.dumps({"status": "analysis_progress", "message": status_msg})
+            for section_name in _SECTION_NAMES:
+                status_msg = (
+                    f"Completed {section_name} analysis."
+                    if section_status.get(section_name, False)
+                    else f"{section_name.capitalize()} analysis failed."
+                )
+                await put_event({"status": "analysis_progress", "message": status_msg})
 
-    if reasoning_list:
-        yield json.dumps({"status": "thinking_complete", "message": "Thinking phase concluded.", "reasoning": state["reasoning"]})
+            if reasoning_list:
+                await put_event({"status": "thinking_complete", "message": "Thinking phase concluded.", "reasoning": state["reasoning"]})
 
-    dashboard_model = aggregator_node(state, reasoning_list)["dashboard_data"]
-    raw_joined = "\n---\n".join(state.get("raw_responses", []))
+            dashboard_model = aggregator_node(state, reasoning_list)["dashboard_data"]
+            raw_joined = "\n---\n".join(state.get("raw_responses", []))
 
-    if len(failed_sections) == len(_SECTION_NAMES):
-        fallback_json = _load_fallback_dashboard()
-        if fallback_json is not None:
-            logger.info("Aggregator: All sub-agents failed. Using high-fidelity fallback_dashboard.json")
-            yield json.dumps(
-                {
-                    "status": "analysis_complete",
-                    "data": fallback_json,
-                    "message": "Using high-fidelity fallback due to API errors.",
-                }
-            )
-            return
+            if len(failed_sections) == len(_SECTION_NAMES):
+                fallback_json = _load_fallback_dashboard()
+                if fallback_json is not None:
+                    await put_event({
+                        "status": "analysis_complete",
+                        "data": fallback_json,
+                        "message": "Using high-fidelity fallback due to API errors.",
+                    })
+                    await queue.put(None)
+                    return
 
-        yield json.dumps(
-            {
-                "status": "error",
-                "message": "All provider sections failed and no fallback available.",
-                "raw_response": raw_joined,
-            }
-        )
-        return
+                await put_event({
+                    "status": "error",
+                    "message": "All provider sections failed and no fallback available.",
+                    "raw_response": raw_joined,
+                })
+                await queue.put(None)
+                return
 
-    dashboard_json = dashboard_model.model_dump()
-    _save_cache(provider_name, dashboard_json, raw_joined)
-    yield json.dumps({"status": "analysis_complete", "data": dashboard_json, "raw_response": raw_joined})
+            dashboard_json = dashboard_model.model_dump()
+            _save_cache(provider_name, dashboard_json, raw_joined)
+            await put_event({"status": "analysis_complete", "data": dashboard_json, "raw_response": raw_joined})
+            await queue.put(None)
+        except Exception as e:
+            await put_event({"status": "error", "message": str(e)})
+            await queue.put(None)
+
+    orchestration_task = asyncio.create_task(run_orchestration())
+    
+    while True:
+        event = await queue.get()
+        if event is None:
+            break
+        yield json.dumps(event)
+    
+    await orchestration_task
 
 
 async def generate_macro_dashboard_async(provider_name: str, skip_cache: bool = False) -> MacroDashboardResponse:

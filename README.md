@@ -3,12 +3,13 @@
 A high-frequency macroeconomic intelligence platform that synthesizes fragmented global market data—including economic calendars, credit stress indicators, and liquidity signals—into a unified real-time dashboard. Engineered with an autonomous multi-agent research layer to perform deep-dive analysis on emerging market trends, replacing manual data aggregation with automated, LLM-driven insights.
 
 ## 🚀 Key Features
+- **Agent-UI Protocol (New):** Implements an open event-streaming protocol for real-time visibility into multi-agent workflows, featuring **Active Agent Spotlights** and live **Multi-Agent Trace** logs.
+- **Human-in-the-Loop (HITL):** Integrated "Interrupt" pattern that pauses the workflow for critical alerts (e.g., low ICR detected), allowing users to approve deep-dives or reject risky strategies.
+- **Progressive Data Rendering:** Uses **Snapshot Cards** to populate the dashboard live as each sub-agent finishes, reducing perceived latency from minutes to seconds.
 - **Hybrid Multi-Agent Orchestration:** Combines **LangGraph** (for deterministic workflow control) with **Microsoft AutoGen** (for autonomous, self-correcting research teams).
 - **Self-Healing Sub-Agents:** Enhanced robustness with a multi-turn JSON validation loop that automatically detects and repairs malformed LLM outputs.
 - **Real-time Thinking & Progress Streaming:** Uses Server-Sent Events (SSE) to stream live status updates and raw model "reasoning_content" directly to the dashboard.
 - **Multi-Model Intelligence:** Support for high-performance models including **DeepSeek V3**, **Qwen 3.5 397B**, and **Bytedance Seed** via NVIDIA AI Foundation Endpoints.
-- **Dynamic Risk Sentiment:** AI-driven score (1-10) with automated deep-dives into Gold, USD (DXY), and Oil technicals.
-- **Credit Health Monitoring:** Analysis of Mid-Cap Interest Coverage Ratios (ICR), PIK debt issuance, and CRE delinquency trends.
 
 ## 🏗️ High-Level Architecture
 ```text
@@ -83,9 +84,11 @@ npm run dev
 
 ## 🔍 Internal Workflow (Execution Flow)
 1. **Bootstrap:** Frontend fetches active providers and last-saved dashboard.
-2. **Research Phase (AutoGen):** The "Smart Researcher" team executes. The **Lead Researcher** gathers web data, while the **Verification Analyst** rejects stale or irrelevant findings (e.g., ensuring 2026 data over 2025).
-3. **Analysis Phase (LangGraph):** Data is passed to four parallel expert agents. Each agent generates a JSON-structured report.
-4. **Self-Healing:** If an agent returns malformed JSON or invalid types, the system utilizes a multi-candidate parsing strategy to repair and validate the data against strict Pydantic schemas.
+2. **Research Phase (AutoGen):** The "Smart Researcher" team executes. The **Lead Researcher** gathers web data, while the **Verification Analyst** rejects stale findings. Live logs are streamed to the **Agent Trace** panel.
+3. **Analysis Phase (LangGraph):** Data is passed to four parallel expert agents.
+    - **Progressive Updates:** As each agent (e.g., Calendar) finishes, a `snapshot` is emitted to populate the UI immediately.
+    - **HITL Interrupt:** If the **Credit Agent** flags a critical risk, the workflow pauses. A modal appears in the UI asking for user approval to proceed with a deep-dive stress test.
+4. **Self-Healing:** If an agent returns malformed JSON, the system utilizes a multi-candidate parsing strategy to repair and validate the data against strict Pydantic schemas.
 5. **Aggregation:** The Aggregator combines all expert insights, appends model reasoning, saves to local cache, and returns the final `MacroDashboardResponse`.
 
 ## ⚠️ Stability Features
