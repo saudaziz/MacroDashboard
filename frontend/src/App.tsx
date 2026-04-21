@@ -9,7 +9,16 @@ import { useDashboard } from './hooks/useDashboard';
 import { COLORS } from './theme';
 
 const toFiniteNumber = (value: unknown, fallback = 0): number => {
-// ... (keep toFiniteNumber) ...
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+  return fallback;
 };
 
 function App() {
@@ -76,12 +85,86 @@ function App() {
       )}
 
       <header className="sticky top-0 z-50 border-b border-slate-800 bg-[#0d1420] px-4 py-3 md:px-8">
-{/* ... (keep header contents) ... */}
+        <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-center gap-4">
+            <div className="font-['Bebas_Neue'] text-xl tracking-[0.1em] text-amber-500">MACRO - CREDIT - RISK</div>
+            <div className="h-5 w-px bg-slate-700" />
+            <div className="font-mono text-[11px] text-slate-400">
+              {new Date()
+                .toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })
+                .toUpperCase()}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            {(data || (loading && agentTrace.length > 0)) && (
+              <div className="flex items-center gap-2">
+                <span
+                  aria-hidden
+                  className={`h-2 w-2 rounded-full animate-pulse ${riskScore >= 7 ? 'bg-red-500' : 'bg-emerald-500'}`}
+                />
+                <span className={`font-mono text-[11px] tracking-[0.1em] ${riskScore >= 7 ? 'text-red-400' : 'text-emerald-400'}`}>
+                  {riskScore >= 7 ? 'HIGH SYSTEMIC STRESS' : 'STABLE MARKET REGIME'}
+                </span>
+              </div>
+            )}
+
+            <label className="flex items-center gap-2 rounded-full border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm" htmlFor="provider-select">
+              <Settings size={14} className="text-slate-400" />
+              <span className="sr-only">Model provider</span>
+              <select
+                id="provider-select"
+                aria-label="Provider"
+                className="cursor-pointer border-none bg-transparent text-sm outline-none"
+                value={provider}
+                onChange={(e) => setProvider(e.target.value)}
+                disabled={loading}
+              >
+                {providers.map((item) => (
+                  <option key={item} value={item} className="bg-slate-900">
+                    {item}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="flex cursor-pointer items-center gap-2 rounded-full border border-slate-700 bg-slate-800 px-3 py-1.5 font-mono text-[11px] text-slate-400">
+              <input
+                type="checkbox"
+                id="skip-cache"
+                checked={skipCache}
+                onChange={(e) => setSkipCache(e.target.checked)}
+                disabled={loading}
+                className="h-3.5 w-3.5 cursor-pointer"
+              />
+              Fresh Data
+            </label>
+
+            <button
+              onClick={() => {
+                void (loading ? cancelDashboardRequest() : fetchDashboard());
+              }}
+              className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-bold text-black ${
+                loading ? 'bg-red-500' : 'bg-amber-500'
+              }`}
+              aria-label={loading ? 'Cancel dashboard generation' : 'Generate dashboard'}
+            >
+              {loading ? <Loader2 className="animate-spin" size={14} /> : <RefreshCw size={14} />}
+              {loading ? 'STOP' : data ? 'REFRESH' : 'GENERATE'}
+            </button>
+          </div>
+        </div>
       </header>
 
       <main className="mx-auto max-w-[1400px] px-4 py-6 md:px-8" aria-live="polite">
         {!data && !loading && !error && (
-{/* ... (keep empty state) ... */}
+          <section className="flex flex-col items-center justify-center py-24 text-center opacity-80 md:py-40">
+            <div className="mb-6 rounded-full bg-slate-800 p-8">
+              <RefreshCw size={64} className="text-slate-600" />
+            </div>
+            <h2 className="mb-2 text-3xl font-bold">System Ready</h2>
+            <p className="mx-auto max-w-md text-slate-400">Initiate agentic research to compile real-time macro-economic intelligence.</p>
+          </section>
         )}
 
         {loading && (
@@ -100,7 +183,19 @@ function App() {
         )}
 
         {error && (
-{/* ... (keep error state) ... */}
+          <Card className="mx-auto my-10 max-w-xl text-center" style={{ border: `1px solid ${COLORS.red}44` }}>
+            <AlertTriangle className="mx-auto mb-4 text-red-500" size={48} />
+            <h2 className="font-['Bebas_Neue'] text-3xl text-red-500">Analysis Failed</h2>
+            <p className="mb-6 text-sm text-slate-400">{error}</p>
+            <button
+              onClick={() => {
+                void fetchDashboard();
+              }}
+              className="rounded-full bg-red-500 px-6 py-2 text-sm font-bold text-white"
+            >
+              RETRY SYSTEM
+            </button>
+          </Card>
         )}
 
         {(data || (loading && agentTrace.length > 0)) && (
@@ -119,7 +214,54 @@ function App() {
             )}
 
             <div className="grid grid-cols-1 gap-px overflow-hidden rounded-lg border border-slate-800 bg-slate-800 lg:grid-cols-[1fr_1fr_1fr_1fr_auto]">
-{/* ... (keep metrics grid) ... */}
+              <div className="bg-[#0d1420] p-4 md:p-5">
+                <MetricBig
+                  label="Risk Sentiment"
+                  value={riskScore}
+                  unit="/10"
+                  color={riskScore >= 7 ? COLORS.red : COLORS.amber}
+                  sub={data?.risk?.summary ?? 'Awaiting data...'}
+                  helpText="Overall market risk level from 0-10. Higher values indicate elevated stress and tighter financial conditions."
+                />
+              </div>
+              <div className="bg-[#0d1420] p-4 md:p-5">
+                <MetricBig
+                  label="Avg Mid-Cap ICR"
+                  value={avgMidCapIcr.toFixed(2)}
+                  unit="x"
+                  color={avgMidCapIcr < 1.5 ? COLORS.red : COLORS.green}
+                  sub={`Alert: ${data?.credit?.alert ? 'YES' : 'NO'}`}
+                  helpText="Interest Coverage Ratio. Below ~1.5x suggests higher debt-servicing pressure."
+                />
+              </div>
+              <div className="bg-[#0d1420] p-4 md:p-5">
+                <MetricBig
+                  label="PIK Issuance"
+                  value={data?.credit?.pik_debt_issuance ?? 'N/A'}
+                  color={COLORS.orange}
+                  sub="Deferred interest volume"
+                  helpText="Payment-In-Kind debt activity. Higher levels can indicate refinancing stress."
+                />
+              </div>
+              <div className="bg-[#0d1420] p-4 md:p-5">
+                <MetricBig
+                  label="CRE Delinquency"
+                  value={data?.credit?.cre_delinquency_rate ?? 'N/A'}
+                  color={COLORS.red}
+                  sub="Commercial Real Estate stress"
+                  helpText="Commercial Real Estate delinquency trend. Rising rates can signal broader credit weakness."
+                />
+              </div>
+              <div className="flex flex-col items-center justify-center bg-[#0d1420] p-4 md:p-5">
+                <div
+                  className="mb-2 font-mono text-[10px] uppercase tracking-[0.1em] text-slate-500"
+                  title="Composite stress indicator derived from macro, risk, and credit signals."
+                  aria-label="Composite stress indicator derived from macro, risk, and credit signals."
+                >
+                  Systemic Risk
+                </div>
+                <RiskGauge data={data?.risk || { score: 0, summary: '' }} />
+              </div>
             </div>
 
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_1.2fr]">
@@ -201,4 +343,100 @@ function App() {
                   </div>
                 </section>
               )}
-{/* ... (rest of details) ... */}
+              {/* --- INTERRUPT HANDLING --- */}
+              {interrupt && (
+                <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4">
+                  <div className="mb-3 flex items-center gap-2 text-red-500">
+                    <AlertTriangle size={16} />
+                    <span className="text-xs font-bold uppercase tracking-wider">Human Intervention Required</span>
+                  </div>
+                  <p className="mb-4 text-sm text-slate-300">
+                    <span className="font-bold text-red-400">[{interrupt.agent}]</span>: {interrupt.message}
+                  </p>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => void handleInterrupt('approved')}
+                      className="rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-500"
+                    >
+                      PROCEED
+                    </button>
+                    <button
+                      onClick={() => void handleInterrupt('rejected')}
+                      className="rounded-lg bg-red-600 px-4 py-2 text-xs font-bold text-white hover:bg-red-500"
+                    >
+                      TERMINATE
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {reasoning && (
+                <section>
+                  <h3 className="mb-2 text-xs text-slate-500 uppercase tracking-wider font-bold">Strategic Thinking Process</h3>
+                  <div className="max-h-60 overflow-y-auto rounded-xl bg-black/40 p-4 font-mono text-xs text-blue-300/80 leading-relaxed scrollbar-thin scrollbar-thumb-white/10 whitespace-pre-wrap">
+                    {reasoning}
+                  </div>
+                </section>
+              )}
+
+              <section>
+                <h3 className="mb-2 text-xs text-slate-500 uppercase tracking-wider font-bold">System Progress log</h3>
+                <div className="max-h-60 min-h-28 overflow-y-auto rounded-xl bg-black/40 p-4 font-mono text-xs text-slate-300 scrollbar-thin scrollbar-thumb-white/10">
+                  {progressLog.length > 0 ? (
+                    progressLog.map((entry, index) => (
+                      <div key={index} className="mb-1.5 border-b border-slate-800/50 pb-1 last:border-0">
+                        {entry}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="opacity-70">No progress events yet.</div>
+                  )}
+                </div>
+              </section>
+
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <section>
+                  <h3 className="mb-2 text-xs text-slate-500 uppercase tracking-wider font-bold">Backend request details</h3>
+                  <pre className="max-h-56 min-h-28 overflow-x-auto whitespace-pre-wrap break-words rounded-xl bg-black/40 p-4 font-mono text-[11px] text-slate-300 scrollbar-thin scrollbar-thumb-white/10">   
+                    {requestContent || 'No request content available.'}
+                  </pre>
+                </section>
+
+                <section>
+                  <h3 className="mb-2 text-xs text-slate-500 uppercase tracking-wider font-bold">LLM prompt structure</h3>
+                  <pre className="max-h-56 min-h-28 overflow-x-auto whitespace-pre-wrap break-words rounded-xl bg-black/40 p-4 font-mono text-[11px] text-slate-300 scrollbar-thin scrollbar-thumb-white/10">   
+                    {llmRequestContent || 'Waiting for the LLM request to be built...'}
+                  </pre>
+                </section>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="flex items-center gap-2 rounded-lg bg-slate-800/50 px-3 py-2">
+                  <span className="text-[10px] text-slate-500 uppercase font-bold">Request Tokens:</span>
+                  <span className="font-mono text-xs text-amber-500">{devStats?.request_tokens ?? 'N/A'}</span>
+                </div>
+                <div className="flex items-center gap-2 rounded-lg bg-slate-800/50 px-3 py-2">
+                  <span className="text-[10px] text-slate-500 uppercase font-bold">Response Tokens:</span>
+                  <span className="font-mono text-xs text-amber-500">{devStats?.response_tokens ?? 'N/A'}</span>
+                </div>
+                <div className="flex items-center gap-2 rounded-lg bg-slate-800/50 px-3 py-2">
+                  <span className="text-[10px] text-slate-500 uppercase font-bold">Total:</span>
+                  <span className="font-mono text-xs text-amber-500">{devStats?.total_tokens ?? 'N/A'}</span>
+                </div>
+              </div>
+
+              <section>
+                <h3 className="mb-2 text-xs text-slate-500 uppercase tracking-wider font-bold">Full raw agent output</h3>
+                <pre className="max-h-80 min-h-40 overflow-x-auto whitespace-pre-wrap break-words rounded-xl bg-black/40 p-4 font-mono text-[11px] text-slate-300 scrollbar-thin scrollbar-thumb-white/10">   
+                  {rawResponse || 'Waiting for final response...'}
+                </pre>
+              </section>
+            </div>
+          </details>
+        )}
+      </main>
+    </div>
+  );
+}
+
+export default App;
