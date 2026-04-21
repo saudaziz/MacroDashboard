@@ -2,6 +2,8 @@ import asyncio
 import json
 import logging
 import traceback
+import os
+from pathlib import Path
 from dotenv import load_dotenv
 
 try:
@@ -12,13 +14,35 @@ except ImportError:
 configure_logging()
 logger = logging.getLogger("Main")
 
-# Load environment variables before any other local imports
-load_dotenv()
+# Robust environment loading
+def load_env_robust():
+    paths = [
+        Path(".env"),                     # CWD
+        Path("backend") / ".env",          # Subdir
+        Path("..") / ".env"                # Parent (if in backend/)
+    ]
+    for p in paths:
+        if p.exists():
+            load_dotenv(p)
+            logger.info(f"Loaded environment from: {p.absolute()}")
+            return True
+    return False
+
+load_env_robust()
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
+limiter = Limiter(key_func=get_remote_address)
+app = FastAPI(title="MacroDashboard API")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 try:
     from backend.agent import (
         generate_macro_dashboard_async,
@@ -39,8 +63,6 @@ except ImportError:
     )
     from models import MacroDashboardResponse
     from providers import list_supported_providers, normalize_provider_name, get_default_provider_name
-
-app = FastAPI(title="MacroDashboard API")
 
 # Track the currently active stream task for cancellation requests
 current_stream_task: asyncio.Task | None = None
@@ -95,11 +117,12 @@ async def cancel_dashboard():
     return {"status": "cancelled"}
 
 @app.post("/api/generate-dashboard", response_model=MacroDashboardResponse)
-async def create_dashboard(request: DashboardRequest):
-    logger.info(f"POST /api/generate-dashboard received. Provider: {request.provider}, Skip Cache: {request.skip_cache}")
+@limiter.limit("5/minute")
+async def create_dashboard(request: Request, dashboard_request: DashboardRequest):
+    logger.info(f"POST /api/generate-dashboard received. Provider: {dashboard_request.provider}, Skip Cache: {dashboard_request.skip_cache}")
     try:
-        provider_name = normalize_provider_name(request.provider)
-        response = await generate_macro_dashboard_async(provider_name, skip_cache=request.skip_cache)
+        provider_name = normalize_provider_name(dashboard_request.provider)
+        response = await generate_macro_dashboard_async(provider_name, skip_cache=dashboard_request.skip_cache)
         logger.info("Dashboard generated successfully (non-streaming).")
         return response
     except ValueError as e:
@@ -119,8 +142,9 @@ def latest_dashboard():
     return latest
 
 @app.post("/api/stream-dashboard")
-async def stream_dashboard(request: DashboardRequest, http_request: Request):
-    logger.info(f"POST /api/stream-dashboard received. Provider: {request.provider}, Skip Cache: {request.skip_cache}")
+@limiter.limit("5/minute")
+async def stream_dashboard(dashboard_request: DashboardRequest, request: Request):
+    logger.info(f"POST /api/stream-dashboard received. Provider: {dashboard_request.provider}, Skip Cache: {dashboard_request.skip_cache}")
     async def event_generator():
         global current_stream_task
         current_task = asyncio.current_task()
@@ -128,9 +152,9 @@ async def stream_dashboard(request: DashboardRequest, http_request: Request):
             current_stream_task = current_task
 
         try:
-            provider_name = normalize_provider_name(request.provider)
-            async for chunk in stream_macro_dashboard(provider_name, skip_cache=request.skip_cache):
-                if await http_request.is_disconnected():
+            provider_name = normalize_provider_name(dashboard_request.provider)
+            async for chunk in stream_macro_dashboard(provider_name, skip_cache=dashboard_request.skip_cache):
+                if await request.is_disconnected():
                     logger.info("Client disconnected from stream.")
                     break
                 yield f"data: {chunk}\n\n"

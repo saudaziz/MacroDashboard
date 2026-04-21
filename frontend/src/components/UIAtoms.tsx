@@ -31,7 +31,7 @@ export const SectionTitle: React.FC<{ children: React.ReactNode }> = ({ children
   </div>
 );
 
-export const MetricBig: React.FC<{ label: string, value: string | number, unit?: string, color?: string, sub?: string, helpText?: string }> = ({ label, value, unit, color = COLORS.amber, sub, helpText }) => (
+export const MetricBig: React.FC<{ label: string, value: string | number, unit?: string, color?: string, sub?: string | undefined, helpText?: string }> = ({ label, value, unit, color = COLORS.amber, sub, helpText }) => (
   <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
       <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: COLORS.muted, letterSpacing: "0.1em", textTransform: "uppercase" }}>{label}</div>

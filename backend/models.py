@@ -66,7 +66,7 @@ class RiskSentiment(MacroBaseModel):
             return max(0.0, min(10.0, result))
         return 5.0
 
-    @field_validator("gold_technical", "usd_technical", "oil_contagion", mode="before")
+    @field_validator("gold_technical", "usd_technical", "oil_contagion", "safe_haven_analysis", "contagion_analysis", mode="before")
     @classmethod
     def _coerce_technical_to_string(cls, value):
         if value is None:
@@ -186,12 +186,29 @@ class PortfolioAllocation(MacroBaseModel):
     percentage: str
     rationale: str
 
+class MacroIndicator(MacroBaseModel):
+    name: str
+    value: str
+    unit: Optional[str] = None
+    trend: Optional[str] = None # UP/DOWN/STABLE
+    note: Optional[str] = None
+
+class MacroIndicators(MacroBaseModel):
+    yield_curve_3m_10y: Optional[MacroIndicator] = None
+    yield_curve_2y_10y: Optional[MacroIndicator] = None
+    inflation_cpi: Optional[MacroIndicator] = None
+    inflation_pce: Optional[MacroIndicator] = None
+    unemployment_rate: Optional[MacroIndicator] = None
+    m2_money_supply: Optional[MacroIndicator] = None
+    fed_funds_rate: Optional[MacroIndicator] = None
+
 class MacroDashboardResponse(MacroBaseModel):
     generated_at: Optional[str] = None
     calendar: MacroCalendar
     risk: RiskSentiment
     crypto_contagion: Optional[CryptoContagion] = None
     credit: CreditHealth
+    macro_indicators: Optional[MacroIndicators] = None
     events: List[MarketEvent]
     portfolio_suggestions: List[PortfolioAllocation]
     risk_mitigation_steps: List[str]

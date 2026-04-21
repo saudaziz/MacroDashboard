@@ -4,7 +4,8 @@ import { COLORS } from '../theme';
 import { Card, SectionTitle } from './UIAtoms';
 
 export const EventsFeed: React.FC<{ events: MarketEvent[] }> = ({ events }) => {
-  const mainEvent = events[0] || { title: 'N/A', description: 'No major events found.', potential_impact: 'N/A' };
+  const safeEvents = Array.isArray(events) ? events : [];
+  const mainEvent = safeEvents[0] || { title: 'N/A', description: 'No major events found.', potential_impact: 'N/A' };
 
   return (
     <Card>

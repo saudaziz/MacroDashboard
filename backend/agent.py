@@ -16,15 +16,15 @@ try:
     from backend.logging_config import configure_logging
     from backend.runtime_paths import CACHE_DIR, LATEST_DASHBOARD_PATH
     from backend.autogen_researcher import run_autogen_research
+    from backend.fred_tool import fetch_fred_stats
 except ImportError:
     from logging_config import configure_logging
     from runtime_paths import CACHE_DIR, LATEST_DASHBOARD_PATH
     from autogen_researcher import run_autogen_research
+    from fred_tool import fetch_fred_stats
 
 configure_logging()
 logger = logging.getLogger("AgentOrchestrator")
-
-load_dotenv()
 
 try:
     from backend.models import (
@@ -35,6 +35,7 @@ try:
         MarketEvent,
         PortfolioAllocation,
         RiskSentiment,
+        MacroIndicators,
     )
     from backend.providers import get_provider, normalize_provider_name
 except ImportError:
@@ -46,6 +47,7 @@ except ImportError:
         MarketEvent,
         PortfolioAllocation,
         RiskSentiment,
+        MacroIndicators,
     )
     from providers import get_provider, normalize_provider_name
 
@@ -57,7 +59,7 @@ MAX_RETRY_DELAY = 10.0
 # --- Cache Configuration ---
 _LATEST_CACHE_PATH = LATEST_DASHBOARD_PATH
 _FALLBACK_CACHE_PATH = Path(__file__).resolve().parent / "fallback_dashboard.json"
-_SECTION_NAMES = ("calendar", "risk", "credit", "strategy")
+_SECTION_NAMES = ("calendar", "risk", "credit", "strategy", "macro_indicators")
 
 
 class AgentState(TypedDict):
@@ -68,6 +70,7 @@ class AgentState(TypedDict):
     risk_data: Optional[Dict[str, Any]]
     credit_data: Optional[Dict[str, Any]]
     strategy_data: Optional[Dict[str, Any]]
+    macro_indicators_data: Optional[Dict[str, Any]]
     dashboard_data: Optional[MacroDashboardResponse]
     raw_responses: list[str]
     reasoning: Optional[str]
@@ -452,12 +455,28 @@ async def strategy_agent(state: AgentState, yield_callback=None) -> Dict[str, An
     return {"strategy_data": result["data"], "raw_responses": [result["raw"]], "reasoning": result.get("reasoning")}
 
 
+async def macro_indicators_agent(state: AgentState, yield_callback=None) -> Dict[str, Any]:
+    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    fred_data = fetch_fred_stats()
+    instruction = (
+        f"Analyze core macroeconomic indicators as of {today_str}. Use the following hard data from FRED where available:\n"
+        f"{fred_data}\n\n"
+        "Return a JSON with a 'macro_indicators' object containing: "
+        "'yield_curve_3m_10y', 'yield_curve_2y_10y', 'inflation_cpi', 'inflation_pce', "
+        "'unemployment_rate', 'm2_money_supply', and 'fed_funds_rate'. "
+        "Each should be an object with 'name', 'value', 'unit', 'trend' (UP/DOWN/STABLE), and 'note'."
+    )
+    result = await _call_sub_agent(state, "MacroIndicators", instruction, yield_callback=yield_callback)
+    return {"macro_indicators_data": result["data"], "raw_responses": [result["raw"]], "reasoning": result.get("reasoning")}
+
+
 async def _run_parallel_sections(state: AgentState, yield_callback=None) -> tuple[Dict[str, Any], Dict[str, bool], list[str], set[str], list[str]]:
     sections = [
         ("calendar", calendar_agent),
         ("risk", risk_agent),
         ("credit", credit_agent),
         ("strategy", strategy_agent),
+        ("macro_indicators", macro_indicators_agent),
     ]
 
     async def wrapped_agent(name, fn):
@@ -515,6 +534,7 @@ def aggregator_node(state: AgentState, reasoning_list: Optional[list[str]] = Non
     risk_data = state.get("risk_data")
     credit_data = state.get("credit_data")
     strategy_data = state.get("strategy_data")
+    macro_indicators_data = state.get("macro_indicators_data")
 
     if not calendar_data:
         missing_sections.append("calendar")
@@ -546,6 +566,10 @@ def aggregator_node(state: AgentState, reasoning_list: Optional[list[str]] = Non
         missing_sections.append("strategy")
         strategy_data = {"events": [], "portfolio_suggestions": [], "risk_mitigation_steps": []}
 
+    if not macro_indicators_data:
+        missing_sections.append("macro_indicators")
+        macro_indicators_data = {}
+
     if missing_sections:
         logger.warning("Aggregator: Missing data from sections: %s", ", ".join(missing_sections))
 
@@ -553,6 +577,7 @@ def aggregator_node(state: AgentState, reasoning_list: Optional[list[str]] = Non
     normalized_risk = _normalize_risk_payload(risk_data)
     normalized_credit = _normalize_credit_payload(credit_data)
     normalized_strategy = _normalize_strategy_payload(strategy_data)
+    normalized_indicators = _normalize_macro_indicators_payload(macro_indicators_data)
 
     try:
         calendar_model = MacroCalendar.model_validate(normalized_calendar)
@@ -585,6 +610,12 @@ def aggregator_node(state: AgentState, reasoning_list: Optional[list[str]] = Non
                 "alert": False,
             }
         )
+
+    try:
+        indicators_model = MacroIndicators.model_validate(normalized_indicators)
+    except Exception as exc:
+        logger.warning("Aggregator: Macro indicators validation failed. Error: %s", exc)
+        indicators_model = MacroIndicators()
 
     crypto_contagion = None
     if isinstance(normalized_risk, dict):
@@ -620,6 +651,7 @@ def aggregator_node(state: AgentState, reasoning_list: Optional[list[str]] = Non
         "risk": risk_model.model_dump(),
         "crypto_contagion": crypto_contagion.model_dump() if crypto_contagion else None,
         "credit": credit_model.model_dump(),
+        "macro_indicators": indicators_model.model_dump(),
         "events": [event.model_dump() for event in events],
         "portfolio_suggestions": [suggestion.model_dump() for suggestion in suggestions],
         "risk_mitigation_steps": mitigation_steps,
@@ -665,8 +697,39 @@ def _build_initial_state(provider_name: str) -> AgentState:
         "risk_data": None,
         "credit_data": None,
         "strategy_data": None,
+        "macro_indicators_data": None,
         "dashboard_data": None,
     }
+
+
+def _normalize_macro_indicators_payload(raw_indicators: Any) -> Dict[str, Any]:
+    if not isinstance(raw_indicators, dict):
+        return {}
+
+    # Handle cases where the LLM might nest it under 'macro_indicators'
+    if "macro_indicators" in raw_indicators and isinstance(raw_indicators["macro_indicators"], dict):
+        raw_indicators = raw_indicators["macro_indicators"]
+
+    keys = [
+        "yield_curve_3m_10y", "yield_curve_2y_10y", "inflation_cpi",
+        "inflation_pce", "unemployment_rate", "m2_money_supply", "fed_funds_rate"
+    ]
+    
+    normalized = {}
+    for key in keys:
+        item = raw_indicators.get(key)
+        if isinstance(item, dict):
+            normalized[key] = {
+                "name": str(item.get("name") or key.replace("_", " ").title()),
+                "value": str(item.get("value") or "N/A"),
+                "unit": str(item.get("unit") or ""),
+                "trend": str(item.get("trend") or "STABLE"),
+                "note": str(item.get("note") or ""),
+            }
+        else:
+            normalized[key] = None
+            
+    return normalized
 
 
 def _normalize_calendar_payload(raw_calendar: Any) -> Dict[str, Any]:

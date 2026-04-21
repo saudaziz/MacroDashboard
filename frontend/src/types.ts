@@ -111,17 +111,37 @@ export interface PortfolioAllocation {
   rationale: string;
 }
 
+export interface MacroIndicator {
+  name: string;
+  value: string;
+  unit?: string;
+  trend?: string;
+  note?: string;
+}
+
+export interface MacroIndicators {
+  yield_curve_3m_10y?: MacroIndicator;
+  yield_curve_2y_10y?: MacroIndicator;
+  inflation_cpi?: MacroIndicator;
+  inflation_pce?: MacroIndicator;
+  unemployment_rate?: MacroIndicator;
+  m2_money_supply?: MacroIndicator;
+  fed_funds_rate?: MacroIndicator;
+}
+
 export interface MacroDashboardResponse {
   generated_at?: string;
   calendar: MacroCalendar;
   risk: RiskSentiment;
-  crypto_contagion?: CryptoContagion | null;
+  crypto_contagion?: CryptoContagion;
   credit: CreditHealth;
+  macro_indicators?: MacroIndicators;
   events: MarketEvent[];
   portfolio_suggestions: PortfolioAllocation[];
   risk_mitigation_steps: string[];
   reasoning?: string | null;
 }
+
 
 export interface TokenStats {
   request_tokens?: number;

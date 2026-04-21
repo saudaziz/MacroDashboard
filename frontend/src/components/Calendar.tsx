@@ -36,7 +36,10 @@ export const Calendar: React.FC<{ data: MacroCalendar }> = ({ data }) => {
     return numeric ? parseFloat(numeric) : 0;
   };
 
-  const chartData = data.rates.map(r => ({
+  const rates = Array.isArray(data?.rates) ? data.rates : [];
+  const dates = Array.isArray(data?.dates) ? data.dates : [];
+
+  const chartData = rates.map(r => ({
     ...r,
     numericRate: getNumericRate(r.rate)
   }));
@@ -113,7 +116,7 @@ export const Calendar: React.FC<{ data: MacroCalendar }> = ({ data }) => {
             </thead>
             <tbody>
               {activeTab === "calendar" ? (
-                data.rates.map((row, i) => (
+                rates.map((row, i) => (
                   <tr key={i} style={{ borderBottom: `1px solid ${COLORS.border}20` }}>
                     <td style={{ padding: "10px 8px", fontFamily: "'DM Mono', monospace", fontSize: 12, color: COLORS.text, fontWeight: 500 }}>{row.bank}</td>
                     <td style={{ padding: "10px 8px" }}>
@@ -123,7 +126,7 @@ export const Calendar: React.FC<{ data: MacroCalendar }> = ({ data }) => {
                   </tr>
                 ))
               ) : (
-                data.dates.map((row, i) => (
+                dates.map((row, i) => (
                   <tr key={i} style={{ borderBottom: `1px solid ${COLORS.border}20` }}>
                     <td style={{ padding: "10px 8px", fontFamily: "'DM Mono', monospace", fontSize: 12, color: COLORS.text, fontWeight: 500 }}>{row.event}</td>
                     <td style={{ padding: "10px 8px" }}>

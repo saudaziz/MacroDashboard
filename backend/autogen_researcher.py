@@ -56,7 +56,30 @@ async def run_autogen_research(provider_name: str, yield_callback=None) -> str:
             })
         return result
 
-    # ... (rest of the agent definitions) ...
+    lead_researcher = AssistantAgent(
+        name="Lead_Researcher",
+        model_client=model_client,
+        tools=[search_func],
+        system_message=(
+            "You are a Lead Macro Researcher. Use the search tool to find CURRENT market data for 2026. "
+            "Focus on gold prices, crude oil, central bank guidance, and credit spreads. "
+            "Be exhaustive and provide specific numbers."
+        )
+    )
+
+    verification_analyst = AssistantAgent(
+        name="Verification_Analyst",
+        model_client=model_client,
+        system_message=(
+            "You are a Verification Analyst. Review findings from the Lead Researcher. "
+            "Ensure the data is relevant for the year 2026. If data is stale or missing, ask for clarification. "
+            "Provide a final synthesized summary of all valid macro points."
+        )
+    )
+
+    team = RoundRobinGroupChat([lead_researcher, verification_analyst], max_turns=3)
+
+    prompt = f"Conduct deep research on macroeconomic conditions as of {today_str}. Focus on gold, oil, G7 rates, and mid-cap credit health."
 
     full_research = ""
     try:

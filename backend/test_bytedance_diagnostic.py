@@ -2,8 +2,10 @@
 import asyncio
 import json
 import os
+import pytest
 from backend.agent import stream_macro_dashboard
 
+@pytest.mark.asyncio
 async def test_bytedance():
     print("Testing Bytedance Seed Provider...")
     # Skip cache to force a fresh API call

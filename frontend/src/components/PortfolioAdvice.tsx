@@ -4,10 +4,13 @@ import { COLORS } from '../theme';
 import { Card, SectionTitle, Tag } from './UIAtoms';
 
 export const PortfolioAdvice: React.FC<{ suggestions: PortfolioAllocation[]; risks: string[] }> = ({ suggestions, risks }) => {
+  const safeSuggestions = Array.isArray(suggestions) ? suggestions : [];
+  const safeRisks = Array.isArray(risks) ? risks : [];
+
   return (
     <Card style={{ border: `1px solid ${COLORS.amber}44` }}>
       <SectionTitle>Actionable Allocation</SectionTitle>
-      {suggestions.map((suggestion, index) => (
+      {safeSuggestions.map((suggestion, index) => (
         <div
           key={`${suggestion.asset_class}-${index}`}
           style={{
@@ -15,7 +18,7 @@ export const PortfolioAdvice: React.FC<{ suggestions: PortfolioAllocation[]; ris
             gap: 12,
             marginBottom: 14,
             paddingBottom: 14,
-            borderBottom: index < suggestions.length - 1 ? `1px solid ${COLORS.border}` : 'none',
+            borderBottom: index < safeSuggestions.length - 1 ? `1px solid ${COLORS.border}` : 'none',
           }}
         >
           <div style={{ flexShrink: 0, marginTop: 2 }}>
@@ -40,7 +43,7 @@ export const PortfolioAdvice: React.FC<{ suggestions: PortfolioAllocation[]; ris
           </div>
         </div>
       ))}
-      {risks.length > 0 && (
+      {safeRisks.length > 0 && (
         <div style={{ marginTop: 8 }}>
           <div
             style={{
@@ -53,7 +56,7 @@ export const PortfolioAdvice: React.FC<{ suggestions: PortfolioAllocation[]; ris
           >
             Risk Mitigation
           </div>
-          {risks.map((risk, index) => (
+          {safeRisks.map((risk, index) => (
             <div key={`${risk}-${index}`} style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: COLORS.muted, marginBottom: 2 }}>
               -&gt; {risk}
             </div>

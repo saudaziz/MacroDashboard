@@ -102,12 +102,28 @@ export function createBackendRequestPreview(provider: string, skipCache: boolean
 }
 
 export function validateDashboardData(value: unknown): MacroDashboardResponse | null {
+  console.log('[Validator] Validating dashboard data payload:', value);
+  
   if (!value || typeof value !== 'object') {
+    console.error('[Validator] Payload is not an object or is null:', value);
     return null;
   }
-  const candidate = value as Record<string, unknown>;
-  if (!candidate.calendar || !candidate.risk || !candidate.credit) {
-    return null;
-  }
-  return value as MacroDashboardResponse;
+  const candidate = value as Record<string, any>;
+  
+  // Ensure required sections exist at least as empty objects/arrays
+  const sections = ['calendar', 'risk', 'credit', 'events', 'portfolio_suggestions', 'risk_mitigation_steps'];
+  sections.forEach(section => {
+    if (!candidate[section]) {
+      console.warn(`[Validator] Missing section "${section}", providing default.`);
+      if (section === 'calendar') candidate.calendar = { dates: [], rates: [] };
+      else if (section === 'risk') candidate.risk = { score: 5, summary: 'N/A' };
+      else if (section === 'credit') candidate.credit = { mid_cap_avg_icr: 0, sectoral_breakdown: [], pik_debt_issuance: 'N/A', cre_delinquency_rate: 'N/A', watchlist: [], alert: false };
+      else if (['events', 'portfolio_suggestions', 'risk_mitigation_steps'].includes(section)) {
+        candidate[section] = [];
+      }
+    }
+  });
+  
+  console.log('[Validator] Validation successful. Resulting candidate:', candidate);
+  return candidate as MacroDashboardResponse;
 }

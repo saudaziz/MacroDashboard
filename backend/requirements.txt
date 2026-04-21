@@ -16,3 +16,5 @@ langgraph
 pyautogen>=0.10.0
 autogen-ext[openai]
 pytest
+slowapi
+fredapi

@@ -3,7 +3,6 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Optional, Tuple
 from langchain_core.language_models.chat_models import BaseChatModel
-from dotenv import load_dotenv
 
 try:
     from langchain_anthropic import ChatAnthropic
@@ -30,15 +29,7 @@ try:
 except ImportError:
     ChatOpenAI = None
 
-try:
-    from backend.logging_config import configure_logging
-except ImportError:
-    from logging_config import configure_logging
-
-configure_logging()
 logger = logging.getLogger("Providers")
-
-load_dotenv()
 
 
 _PROVIDER_REGISTRY = {

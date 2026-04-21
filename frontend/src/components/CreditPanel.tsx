@@ -4,11 +4,14 @@ import { COLORS, riskColor } from '../theme';
 import { Card, SectionTitle, Tag } from './UIAtoms';
 
 export const CreditPanel: React.FC<{ data: CreditHealth }> = ({ data }) => {
+  const sectoralBreakdown = Array.isArray(data?.sectoral_breakdown) ? data.sectoral_breakdown : [];
+  const watchlist = Array.isArray(data?.watchlist) ? data.watchlist : [];
+
   const metrics = [
-    { label: 'PIK Debt Issuance', value: data.pik_debt_issuance, color: COLORS.amber },
-    { label: 'CRE Delinquency', value: data.cre_delinquency_rate, color: COLORS.red },
-    { label: 'Mid-Cap HY OAS', value: data.mid_cap_hy_oas, color: COLORS.orange },
-    { label: 'CP Spreads', value: data.cp_spreads, color: COLORS.orange }
+    { label: 'PIK Debt Issuance', value: data?.pik_debt_issuance || 'N/A', color: COLORS.amber },
+    { label: 'CRE Delinquency', value: data?.cre_delinquency_rate || 'N/A', color: COLORS.red },
+    { label: 'Mid-Cap HY OAS', value: data?.mid_cap_hy_oas || 'N/A', color: COLORS.orange },
+    { label: 'CP Spreads', value: data?.cp_spreads || 'N/A', color: COLORS.orange }
   ];
 
   return (
@@ -25,7 +28,9 @@ export const CreditPanel: React.FC<{ data: CreditHealth }> = ({ data }) => {
               borderRadius: 6, padding: "14px 16px"
             }}>
               <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: COLORS.muted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>{m.label}</div>
-              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, color: m.color, letterSpacing: "0.02em" }}>{m.value}</div>
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, color: m.color, letterSpacing: "0.02em" }}>
+                {typeof m.value === 'object' ? JSON.stringify(m.value) : (m.value || 'N/A')}
+              </div>
             </div>
           ))}
         </div>
@@ -35,7 +40,7 @@ export const CreditPanel: React.FC<{ data: CreditHealth }> = ({ data }) => {
       <Card style={{ flex: 1 }}>
         <SectionTitle>Mid-Cap ICR Sector Breakdown</SectionTitle>
         <div style={{ marginBottom: 16 }}>
-          {data.sectoral_breakdown.map((s, i) => (
+          {sectoralBreakdown.map((s, i) => (
             <div key={i} style={{ marginBottom: 12 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                 <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: COLORS.text }}>{s.sector}</span>
@@ -68,7 +73,7 @@ export const CreditPanel: React.FC<{ data: CreditHealth }> = ({ data }) => {
               </tr>
             </thead>
             <tbody>
-              {data.watchlist.map((d, i) => (
+              {watchlist.map((d, i) => (
                 <tr key={i} style={{ borderBottom: `1px solid ${COLORS.border}20` }}>
                   <td style={{ padding: "8px 6px", fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: COLORS.text }}>{d.firm_name}</td>
                   <td style={{ padding: "8px 6px" }}>

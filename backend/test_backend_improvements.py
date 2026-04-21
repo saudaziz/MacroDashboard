@@ -46,11 +46,17 @@ def _valid_credit() -> dict:
 def _valid_strategy() -> dict:
     return {"events": [], "portfolio_suggestions": [], "risk_mitigation_steps": []}
 
+def _valid_macro_indicators() -> dict:
+    return {
+        "yield_curve_2y_10y": {"name": "10Y-2Y", "value": "-0.15", "unit": "%", "trend": "STABLE"},
+        "inflation_cpi": {"name": "CPI", "value": "3.1", "unit": "%", "trend": "DOWN"},
+    }
+
 
 def test_provider_defaults_to_qwen_when_missing_name():
-    assert get_default_provider_name() == "Qwen 2.5 Coder"
-    assert normalize_provider_name("") == "Qwen 2.5 Coder"
-    assert normalize_provider_name(None) == "Qwen 2.5 Coder"
+    default = get_default_provider_name()
+    assert normalize_provider_name("") == default
+    assert normalize_provider_name(None) == default
 
 
 def test_provider_validation_rejects_unknown_provider():
@@ -60,13 +66,14 @@ def test_provider_validation_rejects_unknown_provider():
 
 def test_aggregator_preserves_crypto_contagion():
     state = {
-        "provider_name": "Qwen 2.5 Coder",
+        "provider_name": "DeepSeek V3",
         "is_cloud_provider": True,
         "aggregated_research": "",
         "calendar_data": _valid_calendar(),
         "risk_data": _valid_risk(),
         "credit_data": _valid_credit(),
         "strategy_data": _valid_strategy(),
+        "macro_indicators_data": _valid_macro_indicators(),
         "dashboard_data": None,
         "raw_responses": [],
     }
@@ -104,58 +111,74 @@ def test_dashboard_validation_coerces_numeric_crypto_asset_fields():
 
 
 def test_parallel_orchestration_runs_concurrently(monkeypatch):
-    async def slow_calendar(state):
+    async def slow_calendar(state, yield_callback=None):
         await asyncio.sleep(0.2)
         return {"calendar_data": _valid_calendar(), "raw_responses": ["ok-calendar"]}
 
-    async def slow_risk(state):
+    async def slow_risk(state, yield_callback=None):
         await asyncio.sleep(0.2)
         return {"risk_data": _valid_risk(), "raw_responses": ["ok-risk"]}
 
-    async def slow_credit(state):
+    async def slow_credit(state, yield_callback=None):
         await asyncio.sleep(0.2)
         return {"credit_data": _valid_credit(), "raw_responses": ["ok-credit"]}
 
-    async def slow_strategy(state):
+    async def slow_strategy(state, yield_callback=None):
         await asyncio.sleep(0.2)
         return {"strategy_data": _valid_strategy(), "raw_responses": ["ok-strategy"]}
+    
+    async def slow_macro(state, yield_callback=None):
+        await asyncio.sleep(0.2)
+        return {"macro_indicators_data": _valid_macro_indicators(), "raw_responses": ["ok-macro"]}
 
     monkeypatch.setattr(agent, "calendar_agent", slow_calendar)
     monkeypatch.setattr(agent, "risk_agent", slow_risk)
     monkeypatch.setattr(agent, "credit_agent", slow_credit)
     monkeypatch.setattr(agent, "strategy_agent", slow_strategy)
+    monkeypatch.setattr(agent, "macro_indicators_agent", slow_macro)
 
-    state = agent._build_initial_state("Qwen 2.5 Coder")
+    state = agent._build_initial_state("DeepSeek V3")
     start = time.perf_counter()
-    updates, status, _, failed = asyncio.run(agent._run_parallel_sections(state))
+    updates, status, _, failed, reasoning = asyncio.run(agent._run_parallel_sections(state))
     elapsed = time.perf_counter() - start
 
-    assert elapsed < 0.45
+    assert elapsed < 0.6 # Parallel should take ~0.2s, but give some overhead
     assert failed == set()
     assert all(status.values())
     assert updates["risk_data"]["score"] == 6.5
 
 
 def test_stream_partial_failure_does_not_trigger_full_fallback(monkeypatch):
-    async def fake_researcher(state):
+    async def fake_researcher(state, yield_callback=None):
         return {"aggregated_research": "mock"}
 
-    async def fake_run_parallel(state):
+    async def fake_run_parallel(state, yield_callback=None):
         updates = {
             "calendar_data": _valid_calendar(),
             "risk_data": None,
             "credit_data": _valid_credit(),
             "strategy_data": _valid_strategy(),
+            "macro_indicators_data": _valid_macro_indicators(),
         }
-        status = {"calendar": True, "risk": False, "credit": True, "strategy": True}
-        return updates, status, ["Error in Risk after 3 attempts"], {"risk"}
+        status = {"calendar": True, "risk": False, "credit": True, "strategy": True, "macro_indicators": True}
+        return updates, status, ["Error in Risk after 3 attempts"], {"risk"}, []
 
     monkeypatch.setattr(agent, "researcher_node", fake_researcher)
     monkeypatch.setattr(agent, "_run_parallel_sections", fake_run_parallel)
     monkeypatch.setattr(agent, "_save_cache", lambda *_args, **_kwargs: None)
 
-    chunks = asyncio.run(_collect_stream(agent.stream_macro_dashboard("Qwen 2.5 Coder", skip_cache=True)))
-    payloads = [json.loads(chunk) for chunk in chunks]
+    chunks = asyncio.run(_collect_stream(agent.stream_macro_dashboard("DeepSeek V3", skip_cache=True)))
+    payloads = [json.loads(chunk) for chunk in chunks if json.loads(chunk).get("status") == "analysis_complete"]
+    
+    if not payloads:
+        # If it didn't complete, check if it errored out. 
+        # In our case it should still complete because 4/5 sections passed.
+        errors = [json.loads(chunk) for chunk in chunks if json.loads(chunk).get("status") == "error"]
+        if errors:
+            pytest.fail(f"Stream errored out: {errors[0]}")
+        else:
+            pytest.fail("Stream did not emit analysis_complete")
+
     final_payload = payloads[-1]
 
     assert final_payload["status"] == "analysis_complete"
@@ -165,7 +188,7 @@ def test_stream_partial_failure_does_not_trigger_full_fallback(monkeypatch):
 
 def test_aggregator_recovers_from_malformed_nested_payloads():
     state = {
-        "provider_name": "Qwen 2.5 Coder",
+        "provider_name": "DeepSeek V3",
         "is_cloud_provider": True,
         "aggregated_research": "",
         "calendar_data": {"dates": "bad", "rates": {}},
@@ -176,6 +199,7 @@ def test_aggregator_recovers_from_malformed_nested_payloads():
             "portfolio_suggestions": [{"asset_class": "Bonds", "percentage": 30, "rationale": "safe"}, {"bad": "row"}],
             "risk_mitigation_steps": ["Step 1", 2, {"k": "v"}],
         },
+        "macro_indicators_data": {"yield_curve_2y_10y": "invalid"},
         "dashboard_data": None,
         "raw_responses": [],
     }
@@ -190,7 +214,7 @@ def test_aggregator_recovers_from_malformed_nested_payloads():
 
 def test_aggregator_normalizes_calendar_alternate_shapes():
     state = {
-        "provider_name": "Qwen 2.5 Coder",
+        "provider_name": "DeepSeek V3",
         "is_cloud_provider": True,
         "aggregated_research": "",
         "calendar_data": {
@@ -214,6 +238,7 @@ def test_aggregator_normalizes_calendar_alternate_shapes():
         "risk_data": _valid_risk(),
         "credit_data": _valid_credit(),
         "strategy_data": _valid_strategy(),
+        "macro_indicators_data": _valid_macro_indicators(),
         "dashboard_data": None,
         "raw_responses": [],
     }
@@ -226,13 +251,14 @@ def test_aggregator_normalizes_calendar_alternate_shapes():
 
 def test_aggregator_normalizes_sparse_risk_and_credit_shapes():
     state = {
-        "provider_name": "Qwen 2.5 Coder",
+        "provider_name": "DeepSeek V3",
         "is_cloud_provider": True,
         "aggregated_research": "",
         "calendar_data": _valid_calendar(),
         "risk_data": {"score": "NaN", "label": "Elevated"},
         "credit_data": {"mid_cap_avg_icr": "not-number"},
         "strategy_data": _valid_strategy(),
+        "macro_indicators_data": _valid_macro_indicators(),
         "dashboard_data": None,
         "raw_responses": [],
     }

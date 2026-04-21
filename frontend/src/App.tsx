@@ -1,11 +1,13 @@
 import { AlertTriangle, Loader2, RefreshCw, Settings, Shield, Check, X, Terminal } from 'lucide-react';
+import { useEffect } from 'react';
 import { Calendar } from './components/Calendar';
 import { CreditPanel } from './components/CreditPanel';
+import { MacroIndicators } from './components/MacroIndicators';
 import { EventsFeed } from './components/EventsFeed';
 import { PortfolioAdvice } from './components/PortfolioAdvice';
 import { RiskGauge } from './components/RiskGauge';
 import { Card, MetricBig, SectionTitle, Tag } from './components/UIAtoms';
-import { useDashboard } from './hooks/useDashboard';
+import { useDashboardStore } from './store/useDashboardStore';
 import { COLORS } from './theme';
 
 const toFiniteNumber = (value: unknown, fallback = 0): number => {
@@ -44,7 +46,14 @@ function App() {
     fetchDashboard,
     cancelDashboardRequest,
     handleInterrupt,
-  } = useDashboard();
+    bootstrap,
+  } = useDashboardStore();
+
+  console.log('[App] Render State:', { loading, hasData: !!data, hasError: !!error, status });
+
+  useEffect(() => {
+    void bootstrap();
+  }, [bootstrap]);
 
   const riskScore = toFiniteNumber(data?.risk?.score, 0);
   const avgMidCapIcr = toFiniteNumber(data?.credit?.mid_cap_avg_icr, 0);
@@ -221,7 +230,7 @@ function App() {
                   unit="/10"
                   color={riskScore >= 7 ? COLORS.red : COLORS.amber}
                   sub={data?.risk?.summary ?? 'Awaiting data...'}
-                  helpText="Overall market risk level from 0-10. Higher values indicate elevated stress and tighter financial conditions."
+                  helpText="Overall market risk level from 0-10. 1-3 indicates a stable market. 4-6 shows moderate risk. 7-10 points to high systemic stress. A higher number means greater risk."
                 />
               </div>
               <div className="bg-[#0d1420] p-4 md:p-5">
@@ -231,7 +240,7 @@ function App() {
                   unit="x"
                   color={avgMidCapIcr < 1.5 ? COLORS.red : COLORS.green}
                   sub={`Alert: ${data?.credit?.alert ? 'YES' : 'NO'}`}
-                  helpText="Interest Coverage Ratio. Below ~1.5x suggests higher debt-servicing pressure."
+                  helpText="Interest Coverage Ratio (ICR) measures how easily companies can pay debt interest. Above 2.0x is healthy; below 1.5x suggests high default risk. Lower is worse."
                 />
               </div>
               <div className="bg-[#0d1420] p-4 md:p-5">
@@ -240,7 +249,7 @@ function App() {
                   value={data?.credit?.pik_debt_issuance ?? 'N/A'}
                   color={COLORS.orange}
                   sub="Deferred interest volume"
-                  helpText="Payment-In-Kind debt activity. Higher levels can indicate refinancing stress."
+                  helpText="Payment-In-Kind (PIK) debt activity. Companies pay interest with more debt instead of cash. High levels indicate cash flow shortages. Lower is better."
                 />
               </div>
               <div className="bg-[#0d1420] p-4 md:p-5">
@@ -249,20 +258,24 @@ function App() {
                   value={data?.credit?.cre_delinquency_rate ?? 'N/A'}
                   color={COLORS.red}
                   sub="Commercial Real Estate stress"
-                  helpText="Commercial Real Estate delinquency trend. Rising rates can signal broader credit weakness."
+                  helpText="Commercial Real Estate (CRE) delinquency trend. Shows the percentage of CRE loans past due. Rising rates signal broader credit weakness. Lower is better."
                 />
               </div>
               <div className="flex flex-col items-center justify-center bg-[#0d1420] p-4 md:p-5">
                 <div
                   className="mb-2 font-mono text-[10px] uppercase tracking-[0.1em] text-slate-500"
-                  title="Composite stress indicator derived from macro, risk, and credit signals."
-                  aria-label="Composite stress indicator derived from macro, risk, and credit signals."
+                  title="Composite stress indicator derived from macro, risk, and credit signals. Gives a unified view of overall market stability."
+                  aria-label="Composite stress indicator derived from macro, risk, and credit signals. Gives a unified view of overall market stability."
                 >
                   Systemic Risk
                 </div>
                 <RiskGauge data={data?.risk || { score: 0, summary: '' }} />
               </div>
             </div>
+
+            {data?.macro_indicators && (
+              <MacroIndicators data={data.macro_indicators} />
+            )}
 
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_1.2fr]">
               <Calendar data={data?.calendar || { dates: [], rates: [] }} />
@@ -287,13 +300,13 @@ function App() {
                   <div className="flex min-w-0 flex-col gap-1">
                     <span className="font-mono text-[10px] uppercase leading-relaxed text-slate-500">Gold Technicals</span>
                     <Tag color={COLORS.amber} style={{ whiteSpace: 'normal', maxWidth: '100%', width: '100%', lineHeight: 1.45, fontSize: 12 }}>
-                      {data?.risk?.gold_technical || 'N/A'}
+                      {typeof data?.risk?.gold_technical === 'object' ? JSON.stringify(data.risk.gold_technical) : (data?.risk?.gold_technical || 'N/A')}
                     </Tag>
                   </div>
                   <div className="flex min-w-0 flex-col gap-1">
                     <span className="font-mono text-[10px] uppercase leading-relaxed text-slate-500">USD Strength</span>
                     <Tag color={COLORS.cyan} style={{ whiteSpace: 'normal', maxWidth: '100%', width: '100%', lineHeight: 1.45, fontSize: 12 }}>
-                      {data?.risk?.usd_technical || 'N/A'}
+                      {typeof data?.risk?.usd_technical === 'object' ? JSON.stringify(data.risk.usd_technical) : (data?.risk?.usd_technical || 'N/A')}
                     </Tag>
                   </div>
                 </div>
