@@ -154,6 +154,10 @@ lerna-debug.log*
 
 # Production build
 frontend/dist/
+frontend_angular/dist/
+backend_dotnet/MacroDashboard.Backend/bin/
+backend_dotnet/MacroDashboard.Backend/obj/
+backend_dotnet/MacroDashboard.Backend/appsettings.Development.json
 
 # OS generated files
 .DS_Store
