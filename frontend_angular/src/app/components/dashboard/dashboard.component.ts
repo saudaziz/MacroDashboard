@@ -166,5 +166,5 @@ import { RiskGaugeComponent } from '../ui/risk-gauge.component';
 })
 export class DashboardComponent {
   readonly store = inject(DashboardStore);
-  readonly providers = ['Bytedance Seed', 'DeepSeek V3', 'Qwen 3.5 397B', 'Claude 3 Haiku', 'Gemini 3.1 Flash Lite', 'Ollama Gemma'];
+  readonly providers = ['Bytedance Seed', 'DeepSeek V3', 'Qwen 3.5 397B', 'Gemini 3.1 Flash Lite', 'Ollama Gemma'];
 }
