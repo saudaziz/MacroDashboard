@@ -32,6 +32,22 @@ public class FredTool
         _httpClient = httpClient;
         _options = options.Value;
         _logger = logger;
+
+        // Prioritize Environment Variable
+        var envKey = Environment.GetEnvironmentVariable("FRED_API_KEY");
+        if (!string.IsNullOrEmpty(envKey))
+        {
+            _options.ApiKey = envKey;
+            _logger.LogInformation("FredTool: Using API key from environment variable FRED_API_KEY.");
+        }
+        else if (string.IsNullOrEmpty(_options.ApiKey) || _options.ApiKey.Contains("YOUR_"))
+        {
+            _logger.LogWarning("FredTool: No valid FRED API key found. Mock data will be used.");
+        }
+        else 
+        {
+            _logger.LogInformation("FredTool: Using API key from configuration.");
+        }
     }
 
     public async Task<double> GetSeriesLatestAsync(string seriesId, CancellationToken ct = default)

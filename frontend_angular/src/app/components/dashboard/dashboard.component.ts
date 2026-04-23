@@ -33,6 +33,9 @@ import { RiskGaugeComponent } from '../ui/risk-gauge.component';
                 <span class="w-2 h-2 rounded-full" [class]="store.isLoading() ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'"></span>
                 <span class="font-mono text-[10px] uppercase tracking-[0.2em] text-slate-500">
                   {{ store.isLoading() ? 'Analysis in Progress' : 'System Ready' }}
+                  <span class="ml-2 text-slate-600">
+                    | {{ store.data()?.reasoning ? (store.data()?.reasoning?.split('(')[1]?.split(')')[0]) : store.provider() }}
+                  </span>
                 </span>
               </div>
             </div>
@@ -163,5 +166,5 @@ import { RiskGaugeComponent } from '../ui/risk-gauge.component';
 })
 export class DashboardComponent {
   readonly store = inject(DashboardStore);
-  readonly providers = ['NVIDIA', 'AzureOpenAI', 'OpenAI', 'Ollama'];
+  readonly providers = ['Bytedance Seed', 'DeepSeek V3', 'Qwen 3.5 397B', 'Claude 3 Haiku', 'Gemini 3.1 Flash Lite', 'Ollama Gemma'];
 }
