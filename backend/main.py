@@ -120,17 +120,33 @@ async def cancel_dashboard():
 @limiter.limit("5/minute")
 async def create_dashboard(request: Request, dashboard_request: DashboardRequest):
     logger.info(f"POST /api/generate-dashboard received. Provider: {dashboard_request.provider}, Skip Cache: {dashboard_request.skip_cache}")
-    try:
-        provider_name = normalize_provider_name(dashboard_request.provider)
-        response = await generate_macro_dashboard_async(provider_name, skip_cache=dashboard_request.skip_cache)
-        logger.info("Dashboard generated successfully (non-streaming).")
-        return response
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.error(f"Error generating dashboard: {str(e)}")
-        logger.error(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=str(e))
+    
+    # --- Agentic Shell Integration ---
+    from agentic_shell.routers.dashboard_router import route_dashboard_request
+    from agentic_shell.state.dashboard_state import DashboardState
+    
+    # 1. Initialize State
+    state = DashboardState(provider=dashboard_request.provider)
+    state = state.transition("START")
+    
+    # 2. Route via Shell (Pure Logic + Adapter)
+    # Note: route_dashboard_request currently calls the synchronous generate_dashboard_adapter
+    # We should ensure it's compatible or use an async version if available.
+    # For now, we'll call the router which manages the orchestration.
+    result = route_dashboard_request(
+        provider_name=dashboard_request.provider, 
+        skip_cache=dashboard_request.skip_cache
+    )
+    
+    if result["success"]:
+        state = state.transition("SUCCESS", payload={"data": result["data"]})
+        logger.info("Dashboard generated successfully via Agentic Shell.")
+        return result["data"]
+    else:
+        state = state.transition("FAILURE", payload={"error": result["error"]})
+        logger.error(f"Agentic Shell failed: {result['error']}")
+        raise HTTPException(status_code=500, detail=result["message"])
+    # ---------------------------------
 
 @app.get("/api/latest-dashboard")
 def latest_dashboard():

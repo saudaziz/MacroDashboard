@@ -1,0 +1,29 @@
+{
+  "name": "MarketDataService",
+  "version": "1.0.0",
+  "description": "Provides access to macroeconomic and financial market data.",
+  "capabilities": [
+    {
+      "id": "fetch_fred_stats",
+      "description": "Retrieves the latest macroeconomic summary from FRED.",
+      "inputs": {},
+      "outputs": {
+        "summary": "string"
+      },
+      "failure_envelope": {
+        "API_UNAVAILABLE": "Retryable",
+        "AUTH_FAILURE": "Terminal"
+      }
+    },
+    {
+      "id": "get_series_latest",
+      "description": "Gets the latest value for a specific FRED series ID.",
+      "inputs": {
+        "series_id": "string"
+      },
+      "outputs": {
+        "value": "number"
+      }
+    }
+  ]
+}

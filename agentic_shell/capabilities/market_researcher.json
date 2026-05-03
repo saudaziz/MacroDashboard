@@ -1,0 +1,21 @@
+{
+  "name": "MarketResearcher",
+  "version": "1.0.0",
+  "description": "Performs deep market research using AutoGen agents.",
+  "capabilities": [
+    {
+      "id": "run_autogen_research",
+      "description": "Starts an AutoGen-based research task for a given provider.",
+      "inputs": {
+        "provider_name": "string"
+      },
+      "outputs": {
+        "research_summary": "string"
+      },
+      "failure_envelope": {
+        "AGENT_CONVERGENCE_FAILURE": "Retryable",
+        "TOOL_FAILURE": "Partial Success"
+      }
+    }
+  ]
+}

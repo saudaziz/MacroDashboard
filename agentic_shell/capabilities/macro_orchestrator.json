@@ -1,0 +1,36 @@
+{
+  "name": "MacroOrchestrator",
+  "version": "1.0.0",
+  "description": "Coordinates the multi-agent workflow to generate a comprehensive macro-economic dashboard.",
+  "capabilities": [
+    {
+      "id": "generate_dashboard",
+      "description": "Executes the full orchestration of sub-agents to produce a dashboard.",
+      "inputs": {
+        "provider_name": "string",
+        "skip_cache": "boolean"
+      },
+      "outputs": {
+        "dashboard": "object",
+        "status": "string",
+        "reasoning": "string[]"
+      },
+      "failure_envelope": {
+        "ORCHESTRATION_TIMEOUT": "Retryable",
+        "AGENT_FAILURE": "Partial Success possible",
+        "PROVIDER_UNAVAILABLE": "Terminal"
+      }
+    },
+    {
+      "id": "stream_dashboard",
+      "description": "Streams partial updates of the dashboard generation process.",
+      "inputs": {
+        "provider_name": "string",
+        "skip_cache": "boolean"
+      },
+      "outputs": {
+        "event_stream": "AsyncGenerator<string>"
+      }
+    }
+  ]
+}

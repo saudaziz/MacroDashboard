@@ -1,0 +1,17 @@
+{
+  "name": "example-component",
+  "version": "1.0.0",
+  "capabilities": [
+    {
+      "id": "example_action",
+      "description": "An example action to be wrapped",
+      "inputs": {},
+      "outputs": {
+        "success": "boolean"
+      },
+      "side_effects": [
+        "NONE"
+      ]
+    }
+  ]
+}

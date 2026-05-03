@@ -66,6 +66,7 @@ class AgentState(TypedDict):
     provider_name: str
     is_cloud_provider: bool
     aggregated_research: str
+    structured_research: Dict[str, str] # Added for token optimization
     calendar_data: Optional[Dict[str, Any]]
     risk_data: Optional[Dict[str, Any]]
     credit_data: Optional[Dict[str, Any]]
@@ -252,10 +253,19 @@ async def _call_sub_agent(state: AgentState, section: str, instruction: str, yie
             logger.info("Throttling Cloud API: %ss delay...", delay)
             await asyncio.sleep(delay)
 
+    # Token Optimization: Use structured research specific to this section
+    # instead of the full aggregated_research blob.
+    research_context = state.get("structured_research", {}).get(section, "")
+    if not research_context and not state["is_cloud_provider"]:
+        # Fallback to a slice of aggregated research if structured is missing (non-cloud only)
+        research_context = state.get("aggregated_research", "")[:2000]
+
     prompt = (
         f"You are a specialized Macro Sub-Agent for: {section}.\n"
         f"{instruction}\n"
-        f"{'RESEARCH CONTEXT:\n' + state.get('aggregated_research', '')[:5000] if not state['is_cloud_provider'] else ''}\n\n"
+        f"--- RESEARCH CONTEXT (SPECIALIZED) ---\n"
+        f"{research_context if research_context else '[No specific research context provided]'}\n"
+        "---------------------------------------\n\n"
         "Return ONLY valid raw JSON. No markdown, no preamble."
     )
 
@@ -320,50 +330,63 @@ async def resume_workflow(decision: str):
 
 
 async def researcher_node(state: AgentState, yield_callback=None) -> Dict[str, Any]:
-    if state["is_cloud_provider"]:
-        return {"aggregated_research": "[Cloud Tier: Internal Knowledge Base Active]"}
-
+    # Cloud providers now get structured research too, but we will summarize it to save tokens.
     logger.info("Researcher Agent: Scraping latest macro data...")
     if yield_callback:
         await yield_callback({"status": "agent_step", "agent": "Researcher", "message": "Initiating deep macro research..."})
     
-    # Try to use AutoGen researcher if available
+    full_research = ""
     try:
-        research_context = await run_autogen_research(state["provider_name"], yield_callback=yield_callback)
-        return {"aggregated_research": research_context}
+        full_research = await run_autogen_research(state["provider_name"], yield_callback=yield_callback)
     except Exception as exc:
         logger.error("AutoGen research failed, falling back to basic search: %s", exc)
+        search = DuckDuckGoSearchRun()
+        today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        queries = [
+            f"current gold price and crude oil price today {today_str}",
+            f"latest macro economic dates CPI PPI Jobs 2026",
+            f"G7 central bank rates guidance 2026",
+            f"credit spreads mid-cap ICR and delinquency rates 2026",
+        ]
+        results = []
+        for q in queries:
+            try:
+                res = await asyncio.wait_for(asyncio.to_thread(search.run, q), timeout=30.0)
+                results.append(f"### {q}\n{res}")
+            except Exception:
+                continue
+        full_research = "\n\n".join(results)
 
-    search = DuckDuckGoSearchRun()
-    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    queries = [
-        f"current gold price and crude oil price today {today_str}",
-        f"latest macro economic dates CPI PPI Jobs 2026",
-        f"G7 central bank rates guidance 2026",
-        f"credit spreads mid-cap ICR and delinquency rates 2026",
-    ]
+    # Token Optimization: Split research into sections
+    structured = {
+        "Calendar": "",
+        "Risk": "",
+        "Credit": "",
+        "Strategy": "",
+        "MacroIndicators": ""
+    }
+    
+    # Heuristic splitting based on keywords to minimize token waste
+    for block in full_research.split("###"):
+        lower_block = block.lower()
+        if any(kw in lower_block for kw in ["date", "cpi", "ppi", "jobs", "rate", "fed", "boj", "ecb"]):
+            structured["Calendar"] += block
+        if any(kw in lower_block for kw in ["risk", "sentiment", "gold", "oil", "crude", "contagion", "btc", "crypto"]):
+            structured["Risk"] += block
+            structured["MacroIndicators"] += block # Indicators also needs price data
+        if any(kw in lower_block for kw in ["credit", "spread", "icr", "delinquency", "debt", "bond", "yield"]):
+            structured["Credit"] += block
+        if any(kw in lower_block for kw in ["strategy", "guidance", "outlook", "geopolitical", "impact"]):
+            structured["Strategy"] += block
 
-    async def run_query(query: str) -> str:
-        try:
-            # Added internal timeout for search
-            result = await asyncio.wait_for(
-                asyncio.to_thread(search.run, query),
-                timeout=30.0
-            )
-            return f"### {query}\n{result}"
-        except Exception as exc:
-            logger.warning("Search query failed for '%s': %s", query, exc)
-            return ""
+    # Final pruning to keep each section concise
+    for key in structured:
+        structured[key] = structured[key].strip()[:2000] # Limit to 2k chars per section
 
-    # Run queries with a slight stagger
-    query_results = []
-    for q in queries:
-        res = await run_query(q)
-        if res:
-            query_results.append(res)
-        await asyncio.sleep(1.0) # Small stagger to avoid rate limiting
-
-    return {"aggregated_research": "\n\n".join(query_results) if query_results else "No fresh web data found."}
+    return {
+        "aggregated_research": full_research[:5000], 
+        "structured_research": structured
+    }
 
 
 async def calendar_agent(state: AgentState, yield_callback=None) -> Dict[str, Any]:
@@ -692,6 +715,7 @@ def _build_initial_state(provider_name: str) -> AgentState:
         "provider_name": provider_name,
         "is_cloud_provider": _is_cloud(provider_name),
         "aggregated_research": "",
+        "structured_research": {},
         "raw_responses": [],
         "calendar_data": None,
         "risk_data": None,
