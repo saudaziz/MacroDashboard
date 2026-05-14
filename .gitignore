@@ -155,6 +155,10 @@ lerna-debug.log*
 # Production build
 frontend/dist/
 
+# Graphify local rules and generated graph output
+.graphifyignore
+graphify-out/
+
 # OS generated files
 .DS_Store
 .DS_Store?

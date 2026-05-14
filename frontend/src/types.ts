@@ -7,6 +7,7 @@ export interface MacroDate {
   actual?: string;
   signal?: string;
   note?: string;
+  verified_source?: string;
 }
 
 export interface CentralBankRate {
@@ -16,18 +17,21 @@ export interface CentralBankRate {
   last_decision?: string;
   next_date?: string;
   guidance: string;
+  verified_source?: string;
 }
 
 export interface G7RateSummary {
   country: string;
   rate: string;
   bank: string;
+  verified_source?: string;
 }
 
 export interface MacroCalendar {
   dates: MacroDate[];
   rates: CentralBankRate[];
   g7_rates_summary?: G7RateSummary[];
+  verified_source?: string;
 }
 
 export interface RiskSentiment {
@@ -40,6 +44,7 @@ export interface RiskSentiment {
   contagion_analysis?: string;
   oil_contagion?: string;
   macro_context?: string;
+  verified_source?: string;
 }
 
 export interface CryptoAsset {
@@ -49,6 +54,7 @@ export interface CryptoAsset {
   change_7d?: string;
   contagion_signal?: string;
   note?: string;
+  verified_source?: string;
 }
 
 export interface CryptoContagion {
@@ -57,6 +63,7 @@ export interface CryptoContagion {
   btc_equity_correlation?: string;
   btc_gold_correlation?: string;
   market_cap?: string;
+  verified_source?: string;
 }
 
 export interface SectoralICR {
@@ -64,6 +71,7 @@ export interface SectoralICR {
   average_icr: number;
   status?: string;
   note?: string;
+  verified_source?: string;
 }
 
 export interface MidCapDebtWatch {
@@ -76,6 +84,7 @@ export interface MidCapDebtWatch {
   cds_pricing: string;
   pik_usage?: boolean;
   note?: string;
+  verified_source?: string;
 }
 
 export interface CreditHealth {
@@ -95,6 +104,7 @@ export interface CreditHealth {
   vix_of_credit_note?: string;
   watchlist: MidCapDebtWatch[];
   alert: boolean;
+  verified_source?: string;
 }
 
 export interface MarketEvent {
@@ -103,12 +113,14 @@ export interface MarketEvent {
   severity?: string;
   description: string;
   potential_impact: string;
+  verified_source?: string;
 }
 
 export interface PortfolioAllocation {
   asset_class: string;
   percentage: string;
   rationale: string;
+  verified_source?: string;
 }
 
 export interface MacroIndicator {
@@ -117,6 +129,7 @@ export interface MacroIndicator {
   unit?: string;
   trend?: string;
   note?: string;
+  verified_source?: string;
 }
 
 export interface MacroIndicators {
@@ -127,6 +140,7 @@ export interface MacroIndicators {
   unemployment_rate?: MacroIndicator;
   m2_money_supply?: MacroIndicator;
   fed_funds_rate?: MacroIndicator;
+  verified_source?: string;
 }
 
 export interface MacroDashboardResponse {
@@ -140,6 +154,7 @@ export interface MacroDashboardResponse {
   portfolio_suggestions: PortfolioAllocation[];
   risk_mitigation_steps: string[];
   reasoning?: string | null;
+  validation_warnings?: string[];
 }
 
 

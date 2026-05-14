@@ -1,0 +1,8 @@
+# Proprietary logic and credentials
+.env*
+keys/
+*.pem
+
+# Compiled execution binaries
+target/
+build/

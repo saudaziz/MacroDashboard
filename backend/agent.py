@@ -66,6 +66,7 @@ class AgentState(TypedDict):
     provider_name: str
     is_cloud_provider: bool
     aggregated_research: str
+    ground_truth: Optional[Dict[str, Any]]
     calendar_data: Optional[Dict[str, Any]]
     risk_data: Optional[Dict[str, Any]]
     credit_data: Optional[Dict[str, Any]]
@@ -252,11 +253,16 @@ async def _call_sub_agent(state: AgentState, section: str, instruction: str, yie
             logger.info("Throttling Cloud API: %ss delay...", delay)
             await asyncio.sleep(delay)
 
+    truth_table = ""
+    if state.get("ground_truth"):
+        truth_table = "GROUND TRUTH DATA (MANDATORY):\n" + json.dumps(state["ground_truth"], indent=2) + "\n\n"
+
     prompt = (
         f"You are a specialized Macro Sub-Agent for: {section}.\n"
         f"{instruction}\n"
+        f"{truth_table}"
         f"{'RESEARCH CONTEXT:\n' + state.get('aggregated_research', '')[:5000] if not state['is_cloud_provider'] else ''}\n\n"
-        "Return ONLY valid raw JSON. No markdown, no preamble."
+        "Return ONLY valid raw JSON. No markdown, no preamble. For each data point, include a 'verified_source' field if a specific source (like FRED, a news outlet, or a specific filing) is known."
     )
 
     last_error: Optional[str] = None
@@ -319,51 +325,80 @@ async def resume_workflow(decision: str):
     _hitl_event.set()
 
 
+async def _fetch_ground_truth() -> Dict[str, Any]:
+    """Fetch hard data points to act as ground truth for agents."""
+    try:
+        from backend.fred_tool import FREDClient
+    except ImportError:
+        from fred_tool import FREDClient
+    
+    client = FREDClient()
+    indicators = {
+        "yield_curve_3m_10y": "T10Y3M",
+        "yield_curve_2y_10y": "T10Y2Y",
+        "inflation_cpi": "CPIAUCSL",
+        "inflation_pce": "PCEPILFE",
+        "unemployment_rate": "UNRATE",
+        "m2_money_supply": "M2SL",
+        "fed_funds_rate": "FEDFUNDS"
+    }
+    
+    truth = {}
+    for key, sid in indicators.items():
+        val = client.get_series_latest(sid)
+        truth[key] = val
+    return truth
+
+
 async def researcher_node(state: AgentState, yield_callback=None) -> Dict[str, Any]:
+    # Fetch ground truth regardless of cloud/local to ensure validation works
+    ground_truth = await _fetch_ground_truth()
+    
     if state["is_cloud_provider"]:
-        return {"aggregated_research": "[Cloud Tier: Internal Knowledge Base Active]"}
+        return {
+            "aggregated_research": "[Cloud Tier: Internal Knowledge Base Active]",
+            "ground_truth": ground_truth
+        }
 
     logger.info("Researcher Agent: Scraping latest macro data...")
     if yield_callback:
         await yield_callback({"status": "agent_step", "agent": "Researcher", "message": "Initiating deep macro research..."})
     
     # Try to use AutoGen researcher if available
+    research_context = ""
     try:
         research_context = await run_autogen_research(state["provider_name"], yield_callback=yield_callback)
-        return {"aggregated_research": research_context}
     except Exception as exc:
         logger.error("AutoGen research failed, falling back to basic search: %s", exc)
+        search = DuckDuckGoSearchRun()
+        today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        queries = [
+            f"current gold price and crude oil price today {today_str}",
+            f"latest macro economic dates CPI PPI Jobs 2026",
+            f"G7 central bank rates guidance 2026",
+            f"credit spreads mid-cap ICR and delinquency rates 2026",
+        ]
 
-    search = DuckDuckGoSearchRun()
-    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    queries = [
-        f"current gold price and crude oil price today {today_str}",
-        f"latest macro economic dates CPI PPI Jobs 2026",
-        f"G7 central bank rates guidance 2026",
-        f"credit spreads mid-cap ICR and delinquency rates 2026",
-    ]
+        async def run_query(query: str) -> str:
+            try:
+                result = await asyncio.wait_for(asyncio.to_thread(search.run, query), timeout=30.0)
+                return f"### {query}\n{result}"
+            except Exception as exc:
+                logger.warning("Search query failed for '%s': %s", query, exc)
+                return ""
 
-    async def run_query(query: str) -> str:
-        try:
-            # Added internal timeout for search
-            result = await asyncio.wait_for(
-                asyncio.to_thread(search.run, query),
-                timeout=30.0
-            )
-            return f"### {query}\n{result}"
-        except Exception as exc:
-            logger.warning("Search query failed for '%s': %s", query, exc)
-            return ""
+        query_results = []
+        for q in queries:
+            res = await run_query(q)
+            if res:
+                query_results.append(res)
+            await asyncio.sleep(1.0)
+        research_context = "\n\n".join(query_results) if query_results else "No fresh web data found."
 
-    # Run queries with a slight stagger
-    query_results = []
-    for q in queries:
-        res = await run_query(q)
-        if res:
-            query_results.append(res)
-        await asyncio.sleep(1.0) # Small stagger to avoid rate limiting
-
-    return {"aggregated_research": "\n\n".join(query_results) if query_results else "No fresh web data found."}
+    return {
+        "aggregated_research": research_context,
+        "ground_truth": ground_truth
+    }
 
 
 async def calendar_agent(state: AgentState, yield_callback=None) -> Dict[str, Any]:
@@ -457,10 +492,10 @@ async def strategy_agent(state: AgentState, yield_callback=None) -> Dict[str, An
 
 async def macro_indicators_agent(state: AgentState, yield_callback=None) -> Dict[str, Any]:
     today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    fred_data = fetch_fred_stats()
+    ground_truth = state.get("ground_truth") or {}
     instruction = (
         f"Analyze core macroeconomic indicators as of {today_str}. Use the following hard data from FRED where available:\n"
-        f"{fred_data}\n\n"
+        f"{json.dumps(ground_truth, indent=2)}\n\n"
         "Return a JSON with a 'macro_indicators' object containing: "
         "'yield_curve_3m_10y', 'yield_curve_2y_10y', 'inflation_cpi', 'inflation_pce', "
         "'unemployment_rate', 'm2_money_supply', and 'fed_funds_rate'. "
@@ -524,7 +559,46 @@ async def _run_parallel_sections(state: AgentState, yield_callback=None) -> tupl
     return updates, status, raw_responses, failed_sections, reasoning_list
 
 
-def aggregator_node(state: AgentState, reasoning_list: Optional[list[str]] = None) -> Dict[str, Any]:
+async def _verify_dashboard_consistency(dashboard: MacroDashboardResponse, ground_truth: Dict[str, Any], provider_name: str) -> list[str]:
+    """Use an LLM to check if the generated narrative contradicts the ground truth data."""
+    if not ground_truth:
+        return []
+
+    # Prepare a compact summary for the verifier
+    narrative_summary = {
+        "risk_summary": dashboard.risk.summary,
+        "credit_summary": dashboard.credit.icr_alert_note,
+        "macro_notes": {k: v.get("note") for k, v in (dashboard.macro_indicators.model_dump().items() if dashboard.macro_indicators else {}) if v}
+    }
+    
+    prompt = (
+        "You are a Data Integrity Judge. Compare the Narrative Summary against the Ground Truth Data.\n"
+        "Identify any factual contradictions (e.g., Narrative says 'Unemployment is down' but Ground Truth shows it rose).\n\n"
+        f"GROUND TRUTH:\n{json.dumps(ground_truth, indent=2)}\n\n"
+        f"NARRATIVE SUMMARY:\n{json.dumps(narrative_summary, indent=2)}\n\n"
+        "Return a JSON list of warning strings. If no contradictions, return [].\n"
+        "ONLY return the JSON list."
+    )
+
+    try:
+        provider = get_provider(provider_name)
+        # Use a cheaper/faster model for verification if possible, otherwise use the same
+        model = provider.get_model()
+        response = await asyncio.wait_for(
+            model.ainvoke([HumanMessage(content=prompt)]),
+            timeout=30.0
+        )
+        content = response.content if hasattr(response, "content") else str(response)
+        parsed, _ = _try_parse_json_payload(content)
+        if isinstance(parsed, list):
+            return [str(w) for w in parsed]
+    except Exception as exc:
+        logger.warning("Consistency check failed: %s", exc)
+    
+    return []
+
+
+async def aggregator_node(state: AgentState, reasoning_list: Optional[list[str]] = None) -> Dict[str, Any]:
     logger.info("Aggregator: Constructing final dashboard report...")
 
     combined_reasoning = "\n\n".join(reasoning_list) if reasoning_list else None
@@ -660,6 +734,10 @@ def aggregator_node(state: AgentState, reasoning_list: Optional[list[str]] = Non
 
     try:
         dashboard = MacroDashboardResponse.model_validate(combined)
+        # Perform consistency check
+        if state.get("ground_truth"):
+            warnings = await _verify_dashboard_consistency(dashboard, state["ground_truth"], state["provider_name"])
+            dashboard.validation_warnings = warnings
     except Exception as exc:
         logger.error("Aggregator: Final validation failed, returning fully safe fallback. Error: %s", exc)
         dashboard = MacroDashboardResponse.model_validate(
@@ -686,12 +764,12 @@ def aggregator_node(state: AgentState, reasoning_list: Optional[list[str]] = Non
 
     return {"dashboard_data": dashboard}
 
-
 def _build_initial_state(provider_name: str) -> AgentState:
     return {
         "provider_name": provider_name,
         "is_cloud_provider": _is_cloud(provider_name),
         "aggregated_research": "",
+        "ground_truth": None,
         "raw_responses": [],
         "calendar_data": None,
         "risk_data": None,
@@ -871,6 +949,12 @@ def _normalize_risk_payload(raw_risk: Any) -> Dict[str, Any]:
     else:
         crypto_raw = None
 
+    macro_context = raw_risk.get("macro_context")
+    if isinstance(macro_context, dict):
+        macro_context = json.dumps(macro_context)
+    elif macro_context is not None:
+        macro_context = str(macro_context)
+
     return {
         "score": score,
         "label": raw_risk.get("label"),
@@ -880,7 +964,7 @@ def _normalize_risk_payload(raw_risk: Any) -> Dict[str, Any]:
         "safe_haven_analysis": raw_risk.get("safe_haven_analysis"),
         "contagion_analysis": str(contagion),
         "oil_contagion": raw_risk.get("oil_contagion"),
-        "macro_context": raw_risk.get("macro_context"),
+        "macro_context": macro_context,
         "crypto_contagion": crypto_raw,
     }
 
@@ -935,6 +1019,20 @@ def _normalize_strategy_payload(raw_strategy: Any) -> Dict[str, Any]:
 
 async def stream_macro_dashboard(provider_name: str, skip_cache: bool = False) -> AsyncGenerator[str, None]:
     provider_name = normalize_provider_name(provider_name)
+    
+    # If Demo, force cache load or fallback. Do not perform new research.
+    if provider_name == "Demo":
+        yield json.dumps({"status": "research_start", "message": "Loading Demo data..."})
+        cached = _load_daily_cache(provider_name)
+        if not cached:
+            cached = _load_fallback_dashboard()
+        
+        if cached:
+            yield json.dumps({"status": "analysis_complete", "data": cached if "dashboard_data" not in cached else cached["dashboard_data"]})
+        else:
+            yield json.dumps({"status": "error", "message": "Demo data not available."})
+        return
+
     if not skip_cache:
         cached = _load_daily_cache(provider_name)
         if cached:
@@ -974,7 +1072,8 @@ async def stream_macro_dashboard(provider_name: str, skip_cache: bool = False) -
             if reasoning_list:
                 await put_event({"status": "thinking_complete", "message": "Thinking phase concluded.", "reasoning": state["reasoning"]})
 
-            dashboard_model = aggregator_node(state, reasoning_list)["dashboard_data"]
+            res_agg = await aggregator_node(state, reasoning_list)
+            dashboard_model = res_agg["dashboard_data"]
             raw_joined = "\n---\n".join(state.get("raw_responses", []))
 
             if len(failed_sections) == len(_SECTION_NAMES):
@@ -1017,6 +1116,17 @@ async def stream_macro_dashboard(provider_name: str, skip_cache: bool = False) -
 
 async def generate_macro_dashboard_async(provider_name: str, skip_cache: bool = False) -> MacroDashboardResponse:
     provider_name = normalize_provider_name(provider_name)
+    
+    # If Demo, force cache load or fallback. Do not perform new research.
+    if provider_name == "Demo":
+        cached = _load_daily_cache(provider_name)
+        if not cached:
+            cached = _load_fallback_dashboard()
+        if cached:
+            data = cached if "dashboard_data" not in cached else cached["dashboard_data"]
+            return MacroDashboardResponse.model_validate(data)
+        raise ValueError("Demo data not available.")
+
     if not skip_cache:
         cached = _load_daily_cache(provider_name)
         if cached:
@@ -1035,7 +1145,8 @@ async def generate_macro_dashboard_async(provider_name: str, skip_cache: bool = 
         if fallback_json is not None:
             return MacroDashboardResponse.model_validate(fallback_json)
 
-    dashboard_model = aggregator_node(state, reasoning_list)["dashboard_data"]
+    res_agg = await aggregator_node(state, reasoning_list)
+    dashboard_model = res_agg["dashboard_data"]
     _save_cache(provider_name, dashboard_model.model_dump(), "\n---\n".join(state.get("raw_responses", [])))
     return dashboard_model
 

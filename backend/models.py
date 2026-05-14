@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field, field_validator, ConfigDict
 class MacroBaseModel(BaseModel):
     # Coerce numeric values into strings where the schema expects strings.
     model_config = ConfigDict(coerce_numbers_to_str=True, extra="ignore")
+    verified_source: Optional[str] = None
 
 class MacroDate(MacroBaseModel):
     event: str
@@ -213,3 +214,4 @@ class MacroDashboardResponse(MacroBaseModel):
     portfolio_suggestions: List[PortfolioAllocation]
     risk_mitigation_steps: List[str]
     reasoning: Optional[str] = None
+    validation_warnings: List[str] = Field(default_factory=list)

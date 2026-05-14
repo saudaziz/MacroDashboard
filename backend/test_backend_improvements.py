@@ -64,7 +64,8 @@ def test_provider_validation_rejects_unknown_provider():
         normalize_provider_name("NotAProvider")
 
 
-def test_aggregator_preserves_crypto_contagion():
+@pytest.mark.anyio
+async def test_aggregator_preserves_crypto_contagion():
     state = {
         "provider_name": "DeepSeek V3",
         "is_cloud_provider": True,
@@ -78,7 +79,8 @@ def test_aggregator_preserves_crypto_contagion():
         "raw_responses": [],
     }
 
-    dashboard = agent.aggregator_node(state)["dashboard_data"]
+    res_agg = await agent.aggregator_node(state)
+    dashboard = res_agg["dashboard_data"]
     assert dashboard.crypto_contagion is not None
     assert dashboard.crypto_contagion.summary == "Limited spillover"
 
@@ -186,11 +188,13 @@ def test_stream_partial_failure_does_not_trigger_full_fallback(monkeypatch):
     assert final_payload["data"]["risk"]["summary"] == "No data - API failed"
 
 
-def test_aggregator_recovers_from_malformed_nested_payloads():
+@pytest.mark.anyio
+async def test_aggregator_recovers_from_malformed_nested_payloads():
     state = {
         "provider_name": "DeepSeek V3",
         "is_cloud_provider": True,
         "aggregated_research": "",
+        "ground_truth": None,
         "calendar_data": {"dates": "bad", "rates": {}},
         "risk_data": {"score": "NaN", "summary": 123, "crypto_contagion": {"assets": [{"name": "BTC", "price": {"x": 1}}]}},
         "credit_data": {"mid_cap_avg_icr": "not-number"},
@@ -204,7 +208,8 @@ def test_aggregator_recovers_from_malformed_nested_payloads():
         "raw_responses": [],
     }
 
-    dashboard = agent.aggregator_node(state)["dashboard_data"]
+    res_agg = await agent.aggregator_node(state)
+    dashboard = res_agg["dashboard_data"]
     assert dashboard is not None
     assert dashboard.calendar is not None
     assert dashboard.risk is not None
@@ -212,11 +217,13 @@ def test_aggregator_recovers_from_malformed_nested_payloads():
     assert isinstance(dashboard.risk_mitigation_steps, list)
 
 
-def test_aggregator_normalizes_calendar_alternate_shapes():
+@pytest.mark.anyio
+async def test_aggregator_normalizes_calendar_alternate_shapes():
     state = {
         "provider_name": "DeepSeek V3",
         "is_cloud_provider": True,
         "aggregated_research": "",
+        "ground_truth": None,
         "calendar_data": {
             "events": [
                 {
@@ -243,17 +250,20 @@ def test_aggregator_normalizes_calendar_alternate_shapes():
         "raw_responses": [],
     }
 
-    dashboard = agent.aggregator_node(state)["dashboard_data"]
+    res_agg = await agent.aggregator_node(state)
+    dashboard = res_agg["dashboard_data"]
     assert len(dashboard.calendar.dates) == 1
     assert len(dashboard.calendar.rates) == 1
     assert dashboard.calendar.rates[0].bank == "Federal Reserve"
 
 
-def test_aggregator_normalizes_sparse_risk_and_credit_shapes():
+@pytest.mark.anyio
+async def test_aggregator_normalizes_sparse_risk_and_credit_shapes():
     state = {
         "provider_name": "DeepSeek V3",
         "is_cloud_provider": True,
         "aggregated_research": "",
+        "ground_truth": None,
         "calendar_data": _valid_calendar(),
         "risk_data": {"score": "NaN", "label": "Elevated"},
         "credit_data": {"mid_cap_avg_icr": "not-number"},
@@ -263,7 +273,8 @@ def test_aggregator_normalizes_sparse_risk_and_credit_shapes():
         "raw_responses": [],
     }
 
-    dashboard = agent.aggregator_node(state)["dashboard_data"]
+    res_agg = await agent.aggregator_node(state)
+    dashboard = res_agg["dashboard_data"]
     assert dashboard.risk.score == 5
     assert dashboard.risk.summary == "Elevated"
     assert dashboard.credit.mid_cap_avg_icr == 0

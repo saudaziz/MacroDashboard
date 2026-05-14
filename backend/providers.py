@@ -3,6 +3,7 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Optional, Tuple
 from langchain_core.language_models.chat_models import BaseChatModel
+from backend.env_loader import get_env_variable
 
 try:
     from langchain_ollama import ChatOllama
@@ -21,17 +22,13 @@ _PROVIDER_REGISTRY = {
     "openrouter": "OpenRouter",
     "ollama": "Ollama Gemma",
     "mock": "Mock Terminal",
+    "demo": "Demo",
 }
-_DEFAULT_PROVIDER = os.getenv("DEFAULT_PROVIDER", "openrouter")
 
-
-def _get_env_var(names: list[str]) -> Tuple[Optional[str], Optional[str]]:
-    for name in names:
-        value = os.getenv(name)
-        if value:
-            logger.info(f"Loaded environment variable: {name}")
-            return value, name
-    return None, None
+try:
+    _DEFAULT_PROVIDER = get_env_variable("DEFAULT_PROVIDER", "openrouter")
+except EnvironmentError:
+    _DEFAULT_PROVIDER = "openrouter"
 
 
 def _require_dependency(dependency: object, package_name: str) -> None:
@@ -50,16 +47,12 @@ class LLMProvider(ABC):
 
 class OpenRouterProvider(LLMProvider):
     def __init__(self, model_name: Optional[str] = None):
-        self.model_name = model_name or os.getenv("OPENROUTER_MODEL", "google/gemini-2.0-flash-001")
+        self.model_name = model_name or get_env_variable("OPENROUTER_MODEL", "google/gemini-2.0-flash-001")
 
     def get_model(self) -> BaseChatModel:
         _require_dependency(ChatOpenAI, "langchain-openai")
         logger.info(f"Initializing OpenRouterProvider with model: {self.model_name}")
-        api_key, _ = _get_env_var(["OPENROUTER_API_KEY"])
-        if not api_key:
-            error_msg = "OPENROUTER_API_KEY is not set in your environment."
-            logger.error(error_msg)
-            raise ValueError(error_msg)
+        api_key = get_env_variable("OPENROUTER_API_KEY")
 
         return ChatOpenAI(
             model=self.model_name,
@@ -71,8 +64,8 @@ class OpenRouterProvider(LLMProvider):
 class OllamaProvider(LLMProvider):
     def get_model(self) -> BaseChatModel:
         _require_dependency(ChatOllama, "langchain-ollama")
-        base_url = os.getenv("OLLAMA_BASE_URL", "http://192.168.68.190:11434")
-        model_name = os.getenv("OLLAMA_MODEL", "gemma4")
+        base_url = get_env_variable("OLLAMA_BASE_URL", "http://192.168.68.190:11434")
+        model_name = get_env_variable("OLLAMA_MODEL", "gemma4")
         logger.info(f"Initializing Ollama Provider at {base_url} with model {model_name}...")
         return ChatOllama(base_url=base_url, model=model_name)
 
@@ -89,7 +82,7 @@ class MockProvider(LLMProvider):
         return MockModel()
 
 def list_supported_providers(include_mock: bool = False) -> list[str]:
-    providers = ["OpenRouter", "Ollama Gemma"]
+    providers = ["OpenRouter", "Ollama Gemma", "Demo"]
     if include_mock:
         providers.append("Mock Terminal")
     return providers

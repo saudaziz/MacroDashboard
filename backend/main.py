@@ -8,27 +8,13 @@ from dotenv import load_dotenv
 
 try:
     from backend.logging_config import configure_logging
+    from backend.env_loader import get_env_variable
 except ImportError:
     from logging_config import configure_logging
+    from env_loader import get_env_variable
 
 configure_logging()
 logger = logging.getLogger("Main")
-
-# Robust environment loading
-def load_env_robust():
-    paths = [
-        Path(".env"),                     # CWD
-        Path("backend") / ".env",          # Subdir
-        Path("..") / ".env"                # Parent (if in backend/)
-    ]
-    for p in paths:
-        if p.exists():
-            load_dotenv(p)
-            logger.info(f"Loaded environment from: {p.absolute()}")
-            return True
-    return False
-
-load_env_robust()
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -122,7 +108,12 @@ async def create_dashboard(request: Request, dashboard_request: DashboardRequest
     logger.info(f"POST /api/generate-dashboard received. Provider: {dashboard_request.provider}, Skip Cache: {dashboard_request.skip_cache}")
     try:
         provider_name = normalize_provider_name(dashboard_request.provider)
-        response = await generate_macro_dashboard_async(provider_name, skip_cache=dashboard_request.skip_cache)
+        # Enforce cache usage for Demo mode
+        skip_cache = dashboard_request.skip_cache
+        if provider_name == "Demo":
+            skip_cache = False
+            
+        response = await generate_macro_dashboard_async(provider_name, skip_cache=skip_cache)
         logger.info("Dashboard generated successfully (non-streaming).")
         return response
     except ValueError as e:
