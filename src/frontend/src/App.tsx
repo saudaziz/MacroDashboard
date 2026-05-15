@@ -23,6 +23,17 @@ const toFiniteNumber = (value: unknown, fallback = 0): number => {
   return fallback;
 };
 
+const toDisplayText = (value: unknown, fallback = 'N/A'): string => {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return fallback;
+  }
+};
+
 function App() {
   const {
     data,
@@ -293,7 +304,7 @@ function App() {
                     <span className="font-mono text-[10px] tracking-[0.1em] text-amber-500">CONTAGION ANALYSIS</span>
                     <Shield size={14} color={COLORS.amber} />
                   </div>
-                  <p className="text-xs leading-relaxed text-slate-400">{data?.risk?.contagion_analysis ?? 'Waiting for analysis...'}</p>
+                  <p className="text-xs leading-relaxed text-slate-400">{toDisplayText(data?.risk?.contagion_analysis, 'Waiting for analysis...')}</p>
                 </div>
                 <div className="my-3.5 h-px bg-slate-800" />
                 <div className="flex min-w-0 flex-col gap-3">
