@@ -2,7 +2,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 
 try:
-    from src.core.runtime_paths import APP_LOG_PATH
+    from src.backend.core.runtime_paths import APP_LOG_PATH
 except ImportError:
     from runtime_paths import APP_LOG_PATH
 

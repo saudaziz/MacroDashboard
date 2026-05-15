@@ -27,13 +27,13 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 try:
-    from src.agents.agent import (
+    from src.backend.agents.agent import (
         generate_macro_dashboard_async,
         stream_macro_dashboard,
         _load_latest_dashboard,
     )
-    from src.core.models import MacroDashboardResponse
-    from src.api.providers import (
+    from src.backend.core.models import MacroDashboardResponse
+    from src.backend.api.providers import (
         list_supported_providers,
         normalize_provider_name,
         get_default_provider_name,
@@ -70,7 +70,7 @@ class ResumeRequest(BaseModel):
 async def resume_dashboard_workflow(request: ResumeRequest):
     logger.info(f"POST /api/resume-workflow received. Decision: {request.decision}")
     try:
-        from src.agents.agent import resume_workflow
+        from src.backend.agents.agent import resume_workflow
     except ImportError:
         from agent import resume_workflow
     
