@@ -36,6 +36,7 @@ export interface DashboardState {
   agentTrace: { agent: string; message: string; timestamp: string }[];
   interrupt: Interrupt | null;
   abortController: AbortController | null;
+  activeRunId: string | null;
 }
 
 export interface DashboardActions {
@@ -49,13 +50,24 @@ export interface DashboardActions {
   addTrace: (agent: string, message: string) => void;
 }
 
+function getSessionId(): string {
+  const key = 'macro_session_id';
+  const existing = window.sessionStorage.getItem(key);
+  if (existing && existing.trim().length > 0) {
+    return existing;
+  }
+  const created = crypto.randomUUID();
+  window.sessionStorage.setItem(key, created);
+  return created;
+}
+
 export const useDashboardStore = create<DashboardState & DashboardActions>((set, get) => ({
   data: null,
   loading: false,
   status: 'Agent is researching...',
   provider: DEFAULT_PROVIDER,
   providers: DEFAULT_PROVIDERS,
-  skipCache: false,
+  skipCache: true,
   error: null,
   progressLog: [],
   rawResponse: null,
@@ -67,6 +79,7 @@ export const useDashboardStore = create<DashboardState & DashboardActions>((set,
   agentTrace: [],
   interrupt: null,
   abortController: null,
+  activeRunId: null,
 
   setProvider: (provider) => set({ provider }),
   setSkipCache: (skipCache) => set({ skipCache }),
@@ -125,8 +138,9 @@ export const useDashboardStore = create<DashboardState & DashboardActions>((set,
   },
 
   cancelDashboardRequest: async () => {
-    const { abortController, addProgress } = get();
-    if (!abortController) return;
+    const { abortController, addProgress, activeRunId } = get();
+    if (!abortController || !activeRunId) return;
+    const sessionId = getSessionId();
 
     abortController.abort();
     set({
@@ -134,11 +148,12 @@ export const useDashboardStore = create<DashboardState & DashboardActions>((set,
       status: 'Request canceled by user.',
       error: null,
       abortController: null,
+      activeRunId: null,
     });
     addProgress('User canceled the active request.');
 
     try {
-      await cancelDashboard();
+      await cancelDashboard(activeRunId, sessionId);
     } catch {
       // Server-side cancellation is best effort.
     }
@@ -148,12 +163,17 @@ export const useDashboardStore = create<DashboardState & DashboardActions>((set,
     const { addProgress } = get();
     set({ interrupt: null });
     addProgress(`User ${decision}ed the interrupt.`);
-    await resumeWorkflow(decision);
+    const { activeRunId } = get();
+    if (!activeRunId) return;
+    const sessionId = getSessionId();
+    await resumeWorkflow(activeRunId, sessionId, decision);
   },
 
   fetchDashboard: async () => {
     const { provider, skipCache, addProgress, addTrace } = get();
 
+    const runId = crypto.randomUUID();
+    const sessionId = getSessionId();
     set({
       loading: true,
       error: null,
@@ -167,7 +187,8 @@ export const useDashboardStore = create<DashboardState & DashboardActions>((set,
       activeAgent: null,
       interrupt: null,
       status: 'Initializing agent...',
-      requestContent: createBackendRequestPreview(provider, skipCache),
+      requestContent: createBackendRequestPreview(provider, skipCache, runId, sessionId),
+      activeRunId: runId,
     });
 
     addProgress(`Request started for provider ${provider}`);
@@ -178,7 +199,7 @@ export const useDashboardStore = create<DashboardState & DashboardActions>((set,
 
     try {
       console.log('[Store] Starting streamDashboard generator...');
-      for await (const payload of streamDashboard({ provider, skip_cache: skipCache }, controller.signal)) {
+      for await (const payload of streamDashboard({ provider, skip_cache: skipCache, run_id: runId, session_id: sessionId }, controller.signal)) {
         console.log(`[Store] Received Event: ${payload.status}`, payload);
 
         if (payload.message) {
@@ -256,6 +277,7 @@ export const useDashboardStore = create<DashboardState & DashboardActions>((set,
             reasoning: validated.reasoning || get().reasoning,
             activeAgent: null,
             loading: false,
+            activeRunId: null,
           });
         } else if (payload.status === 'error') {
           console.error('[Store] Received ERROR status from backend:', payload.message);
@@ -263,6 +285,7 @@ export const useDashboardStore = create<DashboardState & DashboardActions>((set,
             error: payload.message ?? 'Unknown stream error',
             rawResponse: payload.raw_response ?? null,
             loading: false,
+            activeRunId: null,
           });
         }
       }
@@ -274,14 +297,16 @@ export const useDashboardStore = create<DashboardState & DashboardActions>((set,
           status: 'Request canceled by user.',
           error: null,
           rawResponse: 'Request canceled by user.',
+          activeRunId: null,
         });
       } else {
         set({
           error: error.message || 'Failed to fetch dashboard data. Make sure the backend is running.',
+          activeRunId: null,
         });
       }
     } finally {
-      set({ abortController: null, loading: false });
+      set({ abortController: null, loading: false, activeRunId: null });
     }
   },
 }));

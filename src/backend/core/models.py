@@ -215,3 +215,6 @@ class MacroDashboardResponse(MacroBaseModel):
     risk_mitigation_steps: List[str]
     reasoning: Optional[str] = None
     validation_warnings: List[str] = Field(default_factory=list)
+    data_quality: str = "live"
+    fallback_mode: Optional[str] = None
+    fallback_sections: List[str] = Field(default_factory=list)

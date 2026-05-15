@@ -62,7 +62,12 @@ _FALLBACK_CACHE_PATH = Path(__file__).resolve().parent / "fallback_dashboard.jso
 _SECTION_NAMES = ("calendar", "risk", "credit", "strategy", "macro_indicators")
 
 
+def _debug_payload_enabled() -> bool:
+    return os.getenv("EXPOSE_DEBUG_FIELDS", "false").strip().lower() in {"1", "true", "yes", "on"}
+
+
 class AgentState(TypedDict):
+    run_id: str
     provider_name: str
     is_cloud_provider: bool
     aggregated_research: str
@@ -101,8 +106,9 @@ def _save_cache(provider_name: str, dashboard_data: Any, raw_response: str) -> N
         "date": date_str,
         "timestamp": time.time(),
         "dashboard_data": dashboard_data,
-        "raw_response": raw_response,
     }
+    if _debug_payload_enabled():
+        payload["raw_response"] = raw_response
     try:
         json_data = json.dumps(payload, indent=2)
         path.write_text(json_data, encoding="utf-8")
@@ -314,39 +320,58 @@ async def _call_sub_agent(state: AgentState, section: str, instruction: str, yie
     return {"data": None, "raw": f"Error in {section} after {MAX_RETRIES} attempts: {last_error}"}
 
 
-# --- HITL State ---
-_hitl_event = asyncio.Event()
-_hitl_data = {"pending": False, "decision": None}
+# --- HITL State (run scoped) ---
+_hitl_states: dict[str, dict[str, Any]] = {}
+_hitl_lock = asyncio.Lock()
 
-async def resume_workflow(decision: str):
-    logger.info("HITL: Resuming workflow with decision: %s", decision)
-    _hitl_data["decision"] = decision
-    _hitl_data["pending"] = False
-    _hitl_event.set()
+
+async def _get_or_create_hitl_state(run_id: str) -> dict[str, Any]:
+    async with _hitl_lock:
+        if run_id not in _hitl_states:
+            _hitl_states[run_id] = {"event": asyncio.Event(), "pending": False, "decision": None}
+        return _hitl_states[run_id]
+
+
+async def _cleanup_hitl_state(run_id: str) -> None:
+    async with _hitl_lock:
+        _hitl_states.pop(run_id, None)
+
+
+async def resume_workflow(run_id: str, decision: str):
+    logger.info("HITL: Resuming workflow for run_id=%s with decision: %s", run_id, decision)
+    async with _hitl_lock:
+        hitl_state = _hitl_states.get(run_id)
+    if hitl_state is None or not hitl_state.get("pending"):
+        raise ValueError("No pending HITL interrupt for this run.")
+    hitl_state["decision"] = decision
+    hitl_state["pending"] = False
+    hitl_state["event"].set()
 
 
 async def _fetch_ground_truth() -> Dict[str, Any]:
     """Fetch hard data points to act as ground truth for agents."""
     try:
-        from backend.fred_tool import FREDClient
+        from src.backend.core.fred_tool import FREDClient
     except ImportError:
-        from fred_tool import FREDClient
+        from core.fred_tool import FREDClient
     
     client = FREDClient()
-    indicators = {
+    level_indicators = {
         "yield_curve_3m_10y": "T10Y3M",
         "yield_curve_2y_10y": "T10Y2Y",
-        "inflation_cpi": "CPIAUCSL",
-        "inflation_pce": "PCEPILFE",
         "unemployment_rate": "UNRATE",
         "m2_money_supply": "M2SL",
-        "fed_funds_rate": "FEDFUNDS"
+        "fed_funds_rate": "FEDFUNDS",
+        "gold_spot_usd_oz": "GOLDAMGBD228NLBM",
     }
     
     truth = {}
-    for key, sid in indicators.items():
+    for key, sid in level_indicators.items():
         val = client.get_series_latest(sid)
         truth[key] = val
+    # CPI/PCE must be YoY percentages, not index levels.
+    truth["inflation_cpi"] = client.get_series_yoy("CPIAUCSL")
+    truth["inflation_pce"] = client.get_series_yoy("PCEPILFE")
     return truth
 
 
@@ -453,17 +478,19 @@ async def credit_agent(state: AgentState, yield_callback=None) -> Dict[str, Any]
         if yield_callback:
             await yield_callback({
                 "status": "interrupt",
+                "run_id": state["run_id"],
                 "agent": "CreditAgent",
                 "message": f"CRITICAL: Low ICR detected ({data.get('mid_cap_avg_icr')}). Proceed with deep dive?",
                 "data": {"mid_cap_avg_icr": data.get("mid_cap_avg_icr")}
             })
             
         logger.info("HITL: Credit Agent waiting for user approval due to ICR alert.")
-        _hitl_data["pending"] = True
-        _hitl_event.clear()
-        await _hitl_event.wait()
+        hitl_state = await _get_or_create_hitl_state(state["run_id"])
+        hitl_state["pending"] = True
+        hitl_state["event"].clear()
+        await hitl_state["event"].wait()
         
-        if _hitl_data["decision"] == "approved":
+        if hitl_state["decision"] == "approved":
             if yield_callback:
                 await yield_callback({
                     "status": "agent_step",
@@ -598,10 +625,16 @@ async def _verify_dashboard_consistency(dashboard: MacroDashboardResponse, groun
     return []
 
 
-async def aggregator_node(state: AgentState, reasoning_list: Optional[list[str]] = None) -> Dict[str, Any]:
+async def aggregator_node(
+    state: AgentState,
+    reasoning_list: Optional[list[str]] = None,
+    failed_sections: Optional[set[str]] = None,
+) -> Dict[str, Any]:
     logger.info("Aggregator: Constructing final dashboard report...")
 
     combined_reasoning = "\n\n".join(reasoning_list) if reasoning_list else None
+    if not _debug_payload_enabled():
+        combined_reasoning = None
 
     missing_sections = []
     calendar_data = state.get("calendar_data")
@@ -652,6 +685,28 @@ async def aggregator_node(state: AgentState, reasoning_list: Optional[list[str]]
     normalized_credit = _normalize_credit_payload(credit_data)
     normalized_strategy = _normalize_strategy_payload(strategy_data)
     normalized_indicators = _normalize_macro_indicators_payload(macro_indicators_data)
+    ground_truth = state.get("ground_truth") or {}
+    # Override macro indicators with trusted FRED values to avoid LLM unit/scale drift.
+    indicator_overrides = {
+        "yield_curve_3m_10y": ("10Y-3M Yield Spread", "%"),
+        "yield_curve_2y_10y": ("10Y-2Y Yield Spread", "%"),
+        "inflation_cpi": ("CPI Inflation (YoY)", "%"),
+        "inflation_pce": ("Core PCE Inflation (YoY)", "%"),
+        "unemployment_rate": ("Unemployment Rate", "%"),
+        "m2_money_supply": ("M2 Money Supply", "Billion USD"),
+        "fed_funds_rate": ("Fed Funds Rate", "%"),
+    }
+    for key, (name, unit) in indicator_overrides.items():
+        gt_val = ground_truth.get(key)
+        if gt_val is None:
+            continue
+        normalized_indicators[key] = {
+            "name": name,
+            "value": f"{float(gt_val):.2f}",
+            "unit": unit,
+            "trend": normalized_indicators.get(key, {}).get("trend", "STABLE") if isinstance(normalized_indicators.get(key), dict) else "STABLE",
+            "note": "Grounded from FRED source",
+        }
 
     try:
         calendar_model = MacroCalendar.model_validate(normalized_calendar)
@@ -666,6 +721,12 @@ async def aggregator_node(state: AgentState, reasoning_list: Optional[list[str]]
         risk_model = RiskSentiment.model_validate(
             {"score": 5, "summary": "No data - API failed", "contagion_analysis": "N/A"}
         )
+    # Force risk gold display to include grounded FRED spot value.
+    gold_spot = ground_truth.get("gold_spot_usd_oz")
+    if gold_spot is not None:
+        risk_model.gold_technical = f"Gold spot (FRED): ${float(gold_spot):,.2f} per oz"
+    else:
+        risk_model.gold_technical = "Gold spot unavailable from configured source (live quote not retrieved)."
 
     try:
         credit_model = CreditHealth.model_validate(normalized_credit)
@@ -730,6 +791,9 @@ async def aggregator_node(state: AgentState, reasoning_list: Optional[list[str]]
         "portfolio_suggestions": [suggestion.model_dump() for suggestion in suggestions],
         "risk_mitigation_steps": mitigation_steps,
         "reasoning": combined_reasoning,
+        "data_quality": "partial_fallback" if failed_sections else "live",
+        "fallback_mode": "section_fallback" if failed_sections else None,
+        "fallback_sections": sorted(list(failed_sections)) if failed_sections else [],
     }
 
     try:
@@ -759,13 +823,17 @@ async def aggregator_node(state: AgentState, reasoning_list: Optional[list[str]]
                 "events": [],
                 "portfolio_suggestions": [],
                 "risk_mitigation_steps": [],
+                "data_quality": "full_fallback",
+                "fallback_mode": "schema_validation_fallback",
+                "fallback_sections": ["calendar", "risk", "credit", "strategy", "macro_indicators"],
             }
         )
 
     return {"dashboard_data": dashboard}
 
-def _build_initial_state(provider_name: str) -> AgentState:
+def _build_initial_state(provider_name: str, run_id: str) -> AgentState:
     return {
+        "run_id": run_id,
         "provider_name": provider_name,
         "is_cloud_provider": _is_cloud(provider_name),
         "aggregated_research": "",
@@ -1017,7 +1085,7 @@ def _normalize_strategy_payload(raw_strategy: Any) -> Dict[str, Any]:
     }
 
 
-async def stream_macro_dashboard(provider_name: str, skip_cache: bool = False) -> AsyncGenerator[str, None]:
+async def stream_macro_dashboard(provider_name: str, skip_cache: bool = False, run_id: str = "default-run") -> AsyncGenerator[str, None]:
     provider_name = normalize_provider_name(provider_name)
     
     # If Demo, force cache load or fallback. Do not perform new research.
@@ -1028,7 +1096,18 @@ async def stream_macro_dashboard(provider_name: str, skip_cache: bool = False) -
             cached = _load_fallback_dashboard()
         
         if cached:
-            yield json.dumps({"status": "analysis_complete", "data": cached if "dashboard_data" not in cached else cached["dashboard_data"]})
+            demo_data = cached if "dashboard_data" not in cached else cached["dashboard_data"]
+            yield json.dumps(
+                {
+                    "status": "analysis_complete",
+                    "data": {
+                        **demo_data,
+                        "data_quality": "full_fallback",
+                        "fallback_mode": "demo_cache",
+                        "fallback_sections": [],
+                    },
+                }
+            )
         else:
             yield json.dumps({"status": "error", "message": "Demo data not available."})
         return
@@ -1040,7 +1119,7 @@ async def stream_macro_dashboard(provider_name: str, skip_cache: bool = False) -
             yield json.dumps({"status": "analysis_complete", "data": cached["dashboard_data"]})
             return
 
-    state = _build_initial_state(provider_name)
+    state = _build_initial_state(provider_name, run_id)
     
     # Use a queue to bridge the async orchestration task and the generator
     queue = asyncio.Queue()
@@ -1069,10 +1148,10 @@ async def stream_macro_dashboard(provider_name: str, skip_cache: bool = False) -
                 )
                 await put_event({"status": "analysis_progress", "message": status_msg})
 
-            if reasoning_list:
+            if reasoning_list and _debug_payload_enabled():
                 await put_event({"status": "thinking_complete", "message": "Thinking phase concluded.", "reasoning": state["reasoning"]})
 
-            res_agg = await aggregator_node(state, reasoning_list)
+            res_agg = await aggregator_node(state, reasoning_list, failed_sections=failed_sections)
             dashboard_model = res_agg["dashboard_data"]
             raw_joined = "\n---\n".join(state.get("raw_responses", []))
 
@@ -1081,27 +1160,43 @@ async def stream_macro_dashboard(provider_name: str, skip_cache: bool = False) -
                 if fallback_json is not None:
                     await put_event({
                         "status": "analysis_complete",
-                        "data": fallback_json,
+                        "data": {
+                            **fallback_json,
+                            "data_quality": "full_fallback",
+                            "fallback_mode": "provider_failure_fallback",
+                            "fallback_sections": list(_SECTION_NAMES),
+                        },
                         "message": "Using high-fidelity fallback due to API errors.",
                     })
                     await queue.put(None)
                     return
 
-                await put_event({
-                    "status": "error",
-                    "message": "All provider sections failed and no fallback available.",
-                    "raw_response": raw_joined,
-                })
+                if _debug_payload_enabled():
+                    await put_event({
+                        "status": "error",
+                        "message": "All provider sections failed and no fallback available.",
+                        "raw_response": raw_joined,
+                    })
+                else:
+                    await put_event({
+                        "status": "error",
+                        "message": "All provider sections failed and no fallback available.",
+                    })
                 await queue.put(None)
                 return
 
             dashboard_json = dashboard_model.model_dump()
             _save_cache(provider_name, dashboard_json, raw_joined)
-            await put_event({"status": "analysis_complete", "data": dashboard_json, "raw_response": raw_joined})
+            completion_event = {"status": "analysis_complete", "data": dashboard_json}
+            if _debug_payload_enabled():
+                completion_event["raw_response"] = raw_joined
+            await put_event(completion_event)
             await queue.put(None)
         except Exception as e:
             await put_event({"status": "error", "message": str(e)})
             await queue.put(None)
+        finally:
+            await _cleanup_hitl_state(run_id)
 
     orchestration_task = asyncio.create_task(run_orchestration())
     
@@ -1114,7 +1209,7 @@ async def stream_macro_dashboard(provider_name: str, skip_cache: bool = False) -
     await orchestration_task
 
 
-async def generate_macro_dashboard_async(provider_name: str, skip_cache: bool = False) -> MacroDashboardResponse:
+async def generate_macro_dashboard_async(provider_name: str, skip_cache: bool = False, run_id: str = "default-run") -> MacroDashboardResponse:
     provider_name = normalize_provider_name(provider_name)
     
     # If Demo, force cache load or fallback. Do not perform new research.
@@ -1124,7 +1219,14 @@ async def generate_macro_dashboard_async(provider_name: str, skip_cache: bool = 
             cached = _load_fallback_dashboard()
         if cached:
             data = cached if "dashboard_data" not in cached else cached["dashboard_data"]
-            return MacroDashboardResponse.model_validate(data)
+            return MacroDashboardResponse.model_validate(
+                {
+                    **data,
+                    "data_quality": "full_fallback",
+                    "fallback_mode": "demo_cache",
+                    "fallback_sections": [],
+                }
+            )
         raise ValueError("Demo data not available.")
 
     if not skip_cache:
@@ -1132,7 +1234,7 @@ async def generate_macro_dashboard_async(provider_name: str, skip_cache: bool = 
         if cached:
             return MacroDashboardResponse.model_validate(cached["dashboard_data"])
 
-    state = _build_initial_state(provider_name)
+    state = _build_initial_state(provider_name, run_id)
     state.update(await researcher_node(state))
 
     updates, _, raw_responses, failed_sections, reasoning_list = await _run_parallel_sections(state)
@@ -1143,11 +1245,19 @@ async def generate_macro_dashboard_async(provider_name: str, skip_cache: bool = 
     if len(failed_sections) == len(_SECTION_NAMES):
         fallback_json = _load_fallback_dashboard()
         if fallback_json is not None:
-            return MacroDashboardResponse.model_validate(fallback_json)
+            return MacroDashboardResponse.model_validate(
+                {
+                    **fallback_json,
+                    "data_quality": "full_fallback",
+                    "fallback_mode": "provider_failure_fallback",
+                    "fallback_sections": list(_SECTION_NAMES),
+                }
+            )
 
-    res_agg = await aggregator_node(state, reasoning_list)
+    res_agg = await aggregator_node(state, reasoning_list, failed_sections=failed_sections)
     dashboard_model = res_agg["dashboard_data"]
     _save_cache(provider_name, dashboard_model.model_dump(), "\n---\n".join(state.get("raw_responses", [])))
+    await _cleanup_hitl_state(run_id)
     return dashboard_model
 
 

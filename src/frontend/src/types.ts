@@ -155,6 +155,9 @@ export interface MacroDashboardResponse {
   risk_mitigation_steps: string[];
   reasoning?: string | null;
   validation_warnings?: string[];
+  data_quality?: 'live' | 'partial_fallback' | 'full_fallback';
+  fallback_mode?: string | null;
+  fallback_sections?: string[];
 }
 
 
@@ -183,12 +186,14 @@ export interface AgentMessage {
 }
 
 export interface Interrupt {
+  run_id?: string;
   agent: string;
   message: string;
   data?: any;
 }
 
 export interface StreamStatusPayload {
+  run_id?: string;
   status: string;
   message?: string;
   data?: MacroDashboardResponse;

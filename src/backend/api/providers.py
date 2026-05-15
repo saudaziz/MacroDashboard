@@ -53,11 +53,20 @@ class OpenRouterProvider(LLMProvider):
         _require_dependency(ChatOpenAI, "langchain-openai")
         logger.info(f"Initializing OpenRouterProvider with model: {self.model_name}")
         api_key = get_env_variable("OPENROUTER_API_KEY")
+        app_url = get_env_variable("OPENROUTER_APP_URL", "http://localhost:5173")
+        app_name = get_env_variable("OPENROUTER_APP_NAME", "MacroDashboard")
+        # Keep compatibility across langchain-openai versions that resolve OPENAI_API_KEY internally.
+        os.environ["OPENAI_API_KEY"] = api_key
 
         return ChatOpenAI(
             model=self.model_name,
             api_key=api_key,
+            openai_api_key=api_key,
             base_url="https://openrouter.ai/api/v1",
+            default_headers={
+                "HTTP-Referer": app_url,
+                "X-Title": app_name,
+            },
         )
 
 

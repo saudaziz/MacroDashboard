@@ -34,7 +34,27 @@ class FREDClient:
             logger.error(f"Error fetching series {series_id}: {e}. Falling back to mock.")
             return self._get_mock_value(series_id)
 
-    def _get_mock_value(self, series_id: str) -> float:
+    def get_series_yoy(self, series_id: str) -> Optional[float]:
+        """Return year-over-year percent change for monthly-style index series."""
+        if not self.fred:
+            return self._get_mock_value(series_id)
+        try:
+            data = self.fred.get_series(series_id)
+            if data is None or data.empty:
+                return self._get_mock_value(series_id)
+            valid = data.dropna()
+            if len(valid) < 13:
+                return self._get_mock_value(series_id)
+            latest = float(valid.iloc[-1])
+            prior = float(valid.iloc[-13])
+            if prior == 0:
+                return self._get_mock_value(series_id)
+            return ((latest / prior) - 1.0) * 100.0
+        except Exception as e:
+            logger.error(f"Error computing YoY for {series_id}: {e}. Falling back to mock.")
+            return self._get_mock_value(series_id)
+
+    def _get_mock_value(self, series_id: str) -> Optional[float]:
         # Provide realistic mock values for development
         mocks = {
             "T10Y2Y": -0.15,      # 10Y-2Y Spread
@@ -43,9 +63,9 @@ class FREDClient:
             "PCEPILFE": 2.8,      # Core PCE
             "UNRATE": 4.0,        # Unemployment
             "M2SL": 21000.0,      # M2 Money Supply
-            "FEDFUNDS": 5.33      # Fed Funds Rate
+            "FEDFUNDS": 5.33,     # Fed Funds Rate
         }
-        return mocks.get(series_id, 0.0)
+        return mocks.get(series_id)
 
     def get_macro_summary(self) -> str:
         indicators = {
