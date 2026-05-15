@@ -13,10 +13,10 @@ from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_core.messages import HumanMessage
 
 try:
-    from backend.logging_config import configure_logging
-    from backend.runtime_paths import CACHE_DIR, LATEST_DASHBOARD_PATH
-    from backend.autogen_researcher import run_autogen_research
-    from backend.fred_tool import fetch_fred_stats
+    from src.api.logging_config import configure_logging
+    from src.core.runtime_paths import CACHE_DIR, LATEST_DASHBOARD_PATH
+    from src.agents.autogen_researcher import run_autogen_research
+    from src.core.fred_tool import fetch_fred_stats
 except ImportError:
     from logging_config import configure_logging
     from runtime_paths import CACHE_DIR, LATEST_DASHBOARD_PATH
@@ -27,7 +27,7 @@ configure_logging()
 logger = logging.getLogger("AgentOrchestrator")
 
 try:
-    from backend.models import (
+    from src.core.models import (
         CreditHealth,
         CryptoContagion,
         MacroCalendar,
@@ -37,7 +37,7 @@ try:
         RiskSentiment,
         MacroIndicators,
     )
-    from backend.providers import get_provider, normalize_provider_name
+    from src.api.providers import get_provider, normalize_provider_name
 except ImportError:
     from models import (
         CreditHealth,

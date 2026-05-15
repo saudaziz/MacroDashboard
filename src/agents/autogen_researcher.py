@@ -6,7 +6,7 @@ from autogen_agentchat.teams import RoundRobinGroupChat
 from autogen_agentchat.ui import Console
 from autogen_core.models import UserMessage
 from autogen_ext.models.openai import OpenAIChatCompletionClient
-from backend.autogen_config import get_autogen_config
+from src.agents.autogen_config import get_autogen_config
 from langchain_community.tools import DuckDuckGoSearchRun
 from datetime import datetime, timezone
 

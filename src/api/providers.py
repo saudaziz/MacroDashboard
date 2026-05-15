@@ -3,7 +3,7 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Optional, Tuple
 from langchain_core.language_models.chat_models import BaseChatModel
-from backend.env_loader import get_env_variable
+from src.core.env_loader import get_env_variable
 
 try:
     from langchain_ollama import ChatOllama

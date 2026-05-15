@@ -3,12 +3,9 @@ import json
 import logging
 import traceback
 import os
-from pathlib import Path
-from dotenv import load_dotenv
-
 try:
-    from backend.logging_config import configure_logging
-    from backend.env_loader import get_env_variable
+    from src.api.logging_config import configure_logging
+    from src.core.env_loader import get_env_variable
 except ImportError:
     from logging_config import configure_logging
     from env_loader import get_env_variable
@@ -30,26 +27,25 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 try:
-    from backend.agent import (
+    from src.agents.agent import (
         generate_macro_dashboard_async,
         stream_macro_dashboard,
         _load_latest_dashboard,
     )
-    from backend.models import MacroDashboardResponse
-    from backend.providers import (
+    from src.core.models import MacroDashboardResponse
+    from src.api.providers import (
         list_supported_providers,
         normalize_provider_name,
         get_default_provider_name,
     )
 except ImportError:
-    from agent import (
+    from agents.agent import (
         generate_macro_dashboard_async,
         stream_macro_dashboard,
         _load_latest_dashboard,
     )
-    from models import MacroDashboardResponse
+    from core.models import MacroDashboardResponse
     from providers import list_supported_providers, normalize_provider_name, get_default_provider_name
-
 # Track the currently active stream task for cancellation requests
 current_stream_task: asyncio.Task | None = None
 current_stream_lock = asyncio.Lock()
@@ -74,7 +70,7 @@ class ResumeRequest(BaseModel):
 async def resume_dashboard_workflow(request: ResumeRequest):
     logger.info(f"POST /api/resume-workflow received. Decision: {request.decision}")
     try:
-        from backend.agent import resume_workflow
+        from src.agents.agent import resume_workflow
     except ImportError:
         from agent import resume_workflow
     
