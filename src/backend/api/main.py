@@ -4,11 +4,11 @@ import logging
 import traceback
 import os
 try:
+    from src.backend.api.logging_config import configure_logging
+    from src.backend.core.env_loader import get_env_variable
+except ImportError:
     from api.logging_config import configure_logging
     from core.env_loader import get_env_variable
-except ImportError:
-    from logging_config import configure_logging
-    from env_loader import get_env_variable
 
 configure_logging()
 logger = logging.getLogger("Main")
@@ -45,7 +45,11 @@ except ImportError:
         _load_latest_dashboard,
     )
     from core.models import MacroDashboardResponse
-    from providers import list_supported_providers, normalize_provider_name, get_default_provider_name
+    from api.providers import (
+        list_supported_providers,
+        normalize_provider_name,
+        get_default_provider_name,
+    )
 # Track the currently active stream task for cancellation requests
 current_stream_task: asyncio.Task | None = None
 current_stream_lock = asyncio.Lock()
