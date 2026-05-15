@@ -12,12 +12,9 @@ import type { MacroDashboardResponse, TokenStats, Interrupt } from '../types';
 
 const DEFAULT_PROVIDER = 'Bytedance Seed';
 const DEFAULT_PROVIDERS = [
-  'Bytedance Seed',
-  'DeepSeek V3',
-  'Qwen 3.5 397B',
-  'Claude 3 Haiku',
-  'Gemini 2.0 Flash',
+  'OpenRouter',
   'Ollama Gemma',
+  'Demo',
 ];
 const MAX_PROGRESS_LOG = 500;
 
