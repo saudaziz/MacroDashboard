@@ -4,8 +4,8 @@ import logging
 import traceback
 import os
 try:
-    from src.api.logging_config import configure_logging
-    from src.core.env_loader import get_env_variable
+    from api.logging_config import configure_logging
+    from core.env_loader import get_env_variable
 except ImportError:
     from logging_config import configure_logging
     from env_loader import get_env_variable
