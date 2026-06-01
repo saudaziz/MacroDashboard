@@ -190,7 +190,44 @@ def _extract_balanced_json_block(text: str) -> str | None:
     return None
 
 
-def _try_parse_json_payload(content: str) -> tuple[Any | None, str]:
+def _message_content_to_text(content: Any) -> str:
+    """Normalize provider message content into text for JSON parsing.
+
+    LangChain providers do not all return a plain string. Gemini commonly
+    returns a list of content parts, where the actual response is in each
+    part's ``text`` field.
+    """
+    if content is None:
+        return ""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts: list[str] = []
+        for item in content:
+            if isinstance(item, str):
+                parts.append(item)
+                continue
+            if isinstance(item, dict):
+                text = item.get("text")
+                if text is not None:
+                    parts.append(str(text))
+                    continue
+                content_value = item.get("content")
+                if content_value is not None:
+                    parts.append(_message_content_to_text(content_value))
+                    continue
+            parts.append(str(item))
+        return "\n".join(part for part in parts if part)
+    return str(content)
+
+
+def _is_quota_error(exc: Exception) -> bool:
+    message = str(exc).lower()
+    return "resource_exhausted" in message or "quota exceeded" in message or "error code: 429" in message
+
+
+def _try_parse_json_payload(content: Any) -> tuple[Any | None, str]:
+    content = _message_content_to_text(content)
     stripped = content.strip()
     
     # Remove markdown code blocks if present
@@ -285,7 +322,7 @@ async def _call_sub_agent(state: AgentState, section: str, instruction: str, yie
             )
             
             # Extract content and reasoning
-            content = response.content if hasattr(response, "content") else str(response)
+            content = _message_content_to_text(response.content if hasattr(response, "content") else response)
             
             reasoning = None
             if hasattr(response, "additional_kwargs"):
@@ -311,6 +348,9 @@ async def _call_sub_agent(state: AgentState, section: str, instruction: str, yie
         except Exception as exc:
             last_error = str(exc)
             logger.warning("Sub-Agent [%s] Attempt %s failed: %s", section, attempt + 1, exc)
+            if _is_quota_error(exc):
+                logger.error("Sub-Agent [%s] stopped retries due to provider quota exhaustion.", section)
+                break
             if attempt < MAX_RETRIES - 1:
                 delay = min(INITIAL_RETRY_DELAY * (2**attempt), MAX_RETRY_DELAY)
                 logger.info("Sub-Agent [%s] Retrying in %.1fs...", section, delay)
@@ -615,7 +655,7 @@ async def _verify_dashboard_consistency(dashboard: MacroDashboardResponse, groun
             model.ainvoke([HumanMessage(content=prompt)]),
             timeout=30.0
         )
-        content = response.content if hasattr(response, "content") else str(response)
+        content = _message_content_to_text(response.content if hasattr(response, "content") else response)
         parsed, _ = _try_parse_json_payload(content)
         if isinstance(parsed, list):
             return [str(w) for w in parsed]

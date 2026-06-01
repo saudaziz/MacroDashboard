@@ -36,9 +36,34 @@ export const MetricBig: React.FC<{ label: string, value: string | number, unit?:
     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
       <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: COLORS.muted, letterSpacing: "0.1em", textTransform: "uppercase" }}>{label}</div>
       {helpText && (
-        <span title={helpText} aria-label={helpText} style={{ display: "inline-flex", alignItems: "center", color: COLORS.muted, cursor: "help" }}>
+        <button
+          type="button"
+          aria-label={`${label} explanation`}
+          aria-describedby={`${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-tooltip`}
+          className="group"
+          style={{
+            position: "relative",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 18,
+            height: 18,
+            border: 0,
+            padding: 0,
+            background: "transparent",
+            color: COLORS.muted,
+            cursor: "help",
+          }}
+        >
           <Info size={12} />
-        </span>
+          <span
+            id={`${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-tooltip`}
+            role="tooltip"
+            className="pointer-events-none absolute left-1/2 top-full z-50 mt-2 hidden w-64 -translate-x-1/2 rounded border border-slate-700 bg-[#0d1420] px-3 py-2 text-left font-mono text-[11px] leading-relaxed text-slate-200 shadow-xl shadow-black/40 group-hover:block group-focus:block group-focus-visible:block"
+          >
+            {helpText}
+          </span>
+        </button>
       )}
     </div>
     <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>

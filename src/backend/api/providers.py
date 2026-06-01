@@ -15,10 +15,16 @@ try:
 except ImportError:
     ChatOpenAI = None
 
+try:
+    from langchain_google_genai import ChatGoogleGenerativeAI
+except ImportError:
+    ChatGoogleGenerativeAI = None
+
 logger = logging.getLogger("Providers")
 
 
 _PROVIDER_REGISTRY = {
+    "gemini": "Gemini",
     "openrouter": "OpenRouter",
     "ollama": "Ollama Gemma",
     "mock": "Mock Terminal",
@@ -26,9 +32,9 @@ _PROVIDER_REGISTRY = {
 }
 
 try:
-    _DEFAULT_PROVIDER = get_env_variable("DEFAULT_PROVIDER", "openrouter")
+    _DEFAULT_PROVIDER = get_env_variable("DEFAULT_PROVIDER", "gemini")
 except EnvironmentError:
-    _DEFAULT_PROVIDER = "openrouter"
+    _DEFAULT_PROVIDER = "gemini"
 
 
 def _require_dependency(dependency: object, package_name: str) -> None:
@@ -47,7 +53,7 @@ class LLMProvider(ABC):
 
 class OpenRouterProvider(LLMProvider):
     def __init__(self, model_name: Optional[str] = None):
-        self.model_name = model_name or get_env_variable("OPENROUTER_MODEL", "google/gemini-2.0-flash-001")
+        self.model_name = model_name or get_env_variable("OPENROUTER_MODEL", "google/gemini-3.1-flash-lite")
 
     def get_model(self) -> BaseChatModel:
         _require_dependency(ChatOpenAI, "langchain-openai")
@@ -68,6 +74,28 @@ class OpenRouterProvider(LLMProvider):
                 "X-Title": app_name,
             },
         )
+
+
+class GeminiProvider(LLMProvider):
+    def __init__(self, model_name: Optional[str] = None):
+        self.model_name = model_name or get_env_variable("GEMINI_MODEL", "gemini-3.1-flash-lite")
+
+    def get_model(self) -> BaseChatModel:
+        _require_dependency(ChatGoogleGenerativeAI, "langchain-google-genai")
+        gemini_api_key = get_env_variable("GEMINI_API_KEY", "").strip()
+        google_api_key = get_env_variable("GOOGLE_API_KEY", "").strip()
+        api_key = gemini_api_key or google_api_key
+        if not api_key:
+            raise EnvironmentError("Environment variable 'GEMINI_API_KEY' or 'GOOGLE_API_KEY' is not set.")
+        # The Google SDK inspects environment variables internally. Keep only
+        # the selected key in this process so precedence is deterministic.
+        if gemini_api_key:
+            os.environ.pop("GOOGLE_API_KEY", None)
+            os.environ["GEMINI_API_KEY"] = gemini_api_key
+        else:
+            os.environ["GOOGLE_API_KEY"] = google_api_key
+        logger.info("Initializing GeminiProvider with model: %s", self.model_name)
+        return ChatGoogleGenerativeAI(model=self.model_name, api_key=api_key)
 
 
 class OllamaProvider(LLMProvider):
@@ -91,7 +119,7 @@ class MockProvider(LLMProvider):
         return MockModel()
 
 def list_supported_providers(include_mock: bool = False) -> list[str]:
-    providers = ["OpenRouter", "Ollama Gemma", "Demo"]
+    providers = ["Gemini", "OpenRouter", "Ollama Gemma", "Demo"]
     if include_mock:
         providers.append("Mock Terminal")
     return providers
@@ -101,7 +129,7 @@ def get_default_provider_name() -> str:
     default_key = (_DEFAULT_PROVIDER or "").strip().lower()
     if default_key in _PROVIDER_REGISTRY:
         return _PROVIDER_REGISTRY[default_key]
-    return "OpenRouter"
+    return "Gemini"
 
 
 def normalize_provider_name(provider_name: Optional[str]) -> str:
@@ -117,9 +145,9 @@ def normalize_provider_name(provider_name: Optional[str]) -> str:
     if key in _PROVIDER_REGISTRY:
         return _PROVIDER_REGISTRY[key]
         
-    # Maps all legacy providers to OpenRouter
-    legacy_keys = ["gemini", "claude", "qwen", "bytedance", "deepseek"]
-    if any(k in key for k in legacy_keys) or "openrouter" in key:
+    # Maps legacy non-Gemini cloud providers to OpenRouter.
+    legacy_openrouter_keys = ["claude", "qwen", "bytedance", "deepseek"]
+    if any(k in key for k in legacy_openrouter_keys) or "openrouter" in key:
         return _PROVIDER_REGISTRY["openrouter"]
         
     if "ollama" in key:
@@ -138,6 +166,8 @@ def get_provider(provider_name: Optional[str]) -> LLMProvider:
     rev_registry = {v.lower(): k for k, v in _PROVIDER_REGISTRY.items()}
     provider_key = rev_registry.get(canonical_name.lower())
 
+    if provider_key == "gemini":
+        return GeminiProvider()
     if provider_key == "openrouter":
         return OpenRouterProvider()
     if provider_key == "ollama":

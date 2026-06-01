@@ -171,5 +171,5 @@ export function validateDashboardData(value: unknown): MacroDashboardResponse | 
   }
 
   console.log('[Validator] Validation successful.');
-  return candidate as MacroDashboardResponse;
+  return candidate as unknown as MacroDashboardResponse;
 }

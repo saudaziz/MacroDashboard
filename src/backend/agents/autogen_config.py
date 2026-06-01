@@ -17,10 +17,10 @@ def get_autogen_config(provider_name: str) -> List[Dict[str, Any]]:
     config_list = []
     
     if "gemini" in provider_name:
-        api_key = os.getenv("GOOGLE_API_KEY")
+        api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
         if api_key:
             config_list.append({
-                "model": os.getenv("GEMINI_MODEL", "gemini-2.0-flash"),
+                "model": os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite"),
                 "api_key": api_key,
                 "api_type": "google",
             })

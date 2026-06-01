@@ -10,8 +10,9 @@ import {
 } from '../api';
 import type { MacroDashboardResponse, TokenStats, Interrupt } from '../types';
 
-const DEFAULT_PROVIDER = 'Bytedance Seed';
+const DEFAULT_PROVIDER = 'Gemini';
 const DEFAULT_PROVIDERS = [
+  'Gemini',
   'OpenRouter',
   'Ollama Gemma',
   'Demo',
