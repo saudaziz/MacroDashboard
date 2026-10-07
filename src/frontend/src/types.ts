@@ -143,6 +143,34 @@ export interface MacroIndicators {
   verified_source?: string;
 }
 
+export interface CorrelationPoint {
+  date: string;
+  yield_2y: number;
+  yield_5y: number;
+  yield_10y: number;
+  spread_10y_2y: number;
+  vix: number;
+}
+
+export interface ExecutiveSummary {
+  status_label: string;
+  market_weather: string;
+  traffic_light: 'GREEN' | 'YELLOW' | 'RED';
+  plain_english_headline: string;
+  plain_english_explanation: string;
+  actionable_advice: string[];
+  tripwires?: string[];
+}
+
+export interface MacroCorrelations {
+  historical_points: CorrelationPoint[];
+  current_regime: string;
+  yield_curve_signal: string;
+  vix_regime: string;
+  breadth_signal: string;
+  credit_headwinds: string;
+}
+
 export interface MacroDashboardResponse {
   generated_at?: string;
   calendar: MacroCalendar;
@@ -153,6 +181,8 @@ export interface MacroDashboardResponse {
   events: MarketEvent[];
   portfolio_suggestions: PortfolioAllocation[];
   risk_mitigation_steps: string[];
+  correlations?: MacroCorrelations;
+  executive_summary?: ExecutiveSummary;
   reasoning?: string | null;
   validation_warnings?: string[];
   data_quality?: 'live' | 'partial_fallback' | 'full_fallback';

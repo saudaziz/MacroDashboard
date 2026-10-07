@@ -39,7 +39,7 @@ export const MacroIndicators: React.FC<MacroIndicatorsProps> = ({ data }) => {
                 unit="%"
                 color={parseFloat(String(data?.yield_curve_2y_10y?.value || '0')) < 0 ? COLORS.red : COLORS.green}
                 sub={data?.yield_curve_2y_10y?.note}
-                helpText="Difference between 10-year and 2-year Treasury yields. Inversion (negative) often precedes recessions."
+                helpText="Difference between 10-year and 2-year Treasury yields. Inversion (<0.0%) signals late-cycle stress; sustained levels below -0.25% to -0.50% historically flag high recession risk. Recessions typically arrive during the un-inversion."
               />
               <TrendIcon trend={data?.yield_curve_2y_10y?.trend} />
             </div>
@@ -50,7 +50,7 @@ export const MacroIndicators: React.FC<MacroIndicatorsProps> = ({ data }) => {
                 unit="%"
                 color={parseFloat(String(data?.yield_curve_3m_10y?.value || '0')) < 0 ? COLORS.red : COLORS.green}
                 sub={data?.yield_curve_3m_10y?.note}
-                helpText="Difference between 10-year and 3-month Treasury yields. Deep inversion is a strong recession signal."
+                helpText="Difference between 10-year and 3-month Treasury yields. Inversion below -0.50% sustained for a full quarter is the Federal Reserve's most reliable statistical recession flag."
               />
               <TrendIcon trend={data?.yield_curve_3m_10y?.trend} />
             </div>

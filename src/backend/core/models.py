@@ -203,6 +203,53 @@ class MacroIndicators(MacroBaseModel):
     m2_money_supply: Optional[MacroIndicator] = None
     fed_funds_rate: Optional[MacroIndicator] = None
 
+class CorrelationPoint(MacroBaseModel):
+    date: str
+    yield_2y: float
+    yield_5y: float
+    yield_10y: float
+    spread_10y_2y: float
+    vix: float
+
+class ExecutiveSummary(MacroBaseModel):
+    status_label: str = "Caution: Late-Cycle Transition"
+    market_weather: str = "Storm Clouds Gathering"
+    traffic_light: str = "YELLOW" # GREEN, YELLOW, RED
+    plain_english_headline: str = (
+        "Stock indexes are near all-time highs, but carried by only a few mega-tech giants "
+        "while borrowing stress and bond signals point to a coming slowdown."
+    )
+    plain_english_explanation: str = (
+        "On the surface, markets seem calm with volatility (VIX) suppressed. "
+        "However, market breadth has severely narrowed ('The Unbroadening') with the average stock lagging. "
+        "At the same time, the Treasury yield curve has un-inverted and steepened—a classic historical precursor to market pullbacks. "
+        "Rising credit card and loan delinquencies show consumer balance sheets are under pressure."
+    )
+    actionable_advice: List[str] = Field(
+        default_factory=lambda: [
+            "1. Build & Guard Cash: Maintain a 6-12 month emergency buffer in high-yield cash or Treasuries earning ~4-5%.",
+            "2. Trim Overextended Winners: Lock in gains from concentrated tech positions and rebalance into diversified assets.",
+            "3. Lock In Bond Yields: Secure attractive yields in 5-10Y Treasuries before future rate cuts.",
+            "4. Avoid FOMO Chasing: Do not buy speculative stocks at all-time highs without strict risk rules.",
+        ]
+    )
+    tripwires: List[str] = Field(
+        default_factory=lambda: [
+            "1. Unemployment Rate (Sahm Rule): Rises above 4.3% (Current: 4.0%). Historical recession lag: 0–2 months.",
+            "2. Mega-Cap Earnings Stumble: Hyperscaler AI capex returns disappoint or cloud growth slows. Market selloff lag: 1–3 months.",
+            "3. Corporate Credit Distress: High-yield spreads widen above 500 bps or mid-cap ICR drops below 1.8x (Current: 2.15x). Recession lag: 2–4 months.",
+            "4. Volatility Awakening: CBOE VIX surges above 20–25 from current 15.5. Pullback lag: Immediate (days to weeks).",
+        ]
+    )
+
+class MacroCorrelations(MacroBaseModel):
+    historical_points: List[CorrelationPoint] = Field(default_factory=list)
+    current_regime: str = "Un-Inverting (Late Cycle Transition)"
+    yield_curve_signal: str = "10Y-2Y Spread (+0.48%) has un-inverted from deep -1.08% trough; historical danger window"
+    vix_regime: str = "Calm Surface (15.5) masking underlying bond & breadth strains"
+    breadth_signal: str = "The Unbroadening: Narrow rally led by mega-cap tech; vulnerable to leadership rotation"
+    credit_headwinds: str = "Consumer FICO deterioration & commercial credit stress building"
+
 class MacroDashboardResponse(MacroBaseModel):
     generated_at: Optional[str] = None
     calendar: MacroCalendar
@@ -213,6 +260,8 @@ class MacroDashboardResponse(MacroBaseModel):
     events: List[MarketEvent]
     portfolio_suggestions: List[PortfolioAllocation]
     risk_mitigation_steps: List[str]
+    correlations: Optional[MacroCorrelations] = None
+    executive_summary: Optional[ExecutiveSummary] = None
     reasoning: Optional[str] = None
     validation_warnings: List[str] = Field(default_factory=list)
     data_quality: str = "live"

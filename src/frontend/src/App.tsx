@@ -1,12 +1,15 @@
-import { AlertTriangle, Loader2, RefreshCw, Settings, Shield, Check, X, Terminal } from 'lucide-react';
+import { AlertTriangle, Loader2, RefreshCw, Settings, Check, X, Terminal } from 'lucide-react';
 import { useEffect } from 'react';
 import { Calendar } from './components/Calendar';
 import { CreditPanel } from './components/CreditPanel';
 import { MacroIndicators } from './components/MacroIndicators';
+import { ExecutiveSummaryPanel } from './components/ExecutiveSummaryPanel';
+import { MacroCorrelationsPanel } from './components/MacroCorrelationsPanel';
 import { EventsFeed } from './components/EventsFeed';
 import { PortfolioAdvice } from './components/PortfolioAdvice';
 import { RiskGauge } from './components/RiskGauge';
-import { Card, MetricBig, SectionTitle, Tag } from './components/UIAtoms';
+import { SafeHavenTechnicals } from './components/SafeHavenTechnicals';
+import { Card, MetricBig } from './components/UIAtoms';
 import { useDashboardStore } from './store/useDashboardStore';
 import { COLORS } from './theme';
 
@@ -21,17 +24,6 @@ const toFiniteNumber = (value: unknown, fallback = 0): number => {
     }
   }
   return fallback;
-};
-
-const toDisplayText = (value: unknown, fallback = 'N/A'): string => {
-  if (value === null || value === undefined) return fallback;
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return fallback;
-  }
 };
 
 function App() {
@@ -107,7 +99,10 @@ function App() {
       <header className="sticky top-0 z-50 border-b border-slate-800 bg-[#0d1420] px-4 py-3 md:px-8">
         <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-4">
-            <div className="font-['Bebas_Neue'] text-xl tracking-[0.1em] text-amber-500">MACRO - CREDIT - RISK</div>
+            <div className="font-['Bebas_Neue'] text-xl tracking-[0.1em] text-amber-500 flex items-center gap-2">
+              <span>MACRO - CREDIT - RISK</span>
+              <span className="font-mono text-[10px] text-slate-400 font-semibold tracking-wider uppercase">by Saud Aziz</span>
+            </div>
             <div className="h-5 w-px bg-slate-700" />
             <div className="font-mono text-[11px] text-slate-400">
               {new Date()
@@ -233,56 +228,65 @@ function App() {
                </div>
             )}
 
-            <div className="grid grid-cols-1 gap-px overflow-hidden rounded-lg border border-slate-800 bg-slate-800 lg:grid-cols-[1fr_1fr_1fr_1fr_auto]">
-              <div className="bg-[#0d1420] p-4 md:p-5">
-                <MetricBig
-                  label="Risk Sentiment"
-                  value={riskScore}
-                  unit="/10"
-                  color={riskScore >= 7 ? COLORS.red : COLORS.amber}
-                  sub={data?.risk?.summary ?? 'Awaiting data...'}
-                  helpText="Overall market risk level from 0-10. 1-3 indicates a stable market. 4-6 shows moderate risk. 7-10 points to high systemic stress. A higher number means greater risk."
-                />
-              </div>
-              <div className="bg-[#0d1420] p-4 md:p-5">
-                <MetricBig
-                  label="Avg Mid-Cap ICR"
-                  value={avgMidCapIcr.toFixed(2)}
-                  unit="x"
-                  color={avgMidCapIcr < 1.5 ? COLORS.red : COLORS.green}
-                  sub={`Alert: ${data?.credit?.alert ? 'YES' : 'NO'}`}
-                  helpText="Interest Coverage Ratio (ICR) measures how easily companies can pay debt interest. Above 2.0x is healthy; below 1.5x suggests high default risk. Lower is worse."
-                />
-              </div>
-              <div className="bg-[#0d1420] p-4 md:p-5">
-                <MetricBig
-                  label="PIK Issuance"
-                  value={data?.credit?.pik_debt_issuance ?? 'N/A'}
-                  color={COLORS.orange}
-                  sub="Deferred interest volume"
-                  helpText="Payment-In-Kind (PIK) debt activity. Companies pay interest with more debt instead of cash. High levels indicate cash flow shortages. Lower is better."
-                />
-              </div>
-              <div className="bg-[#0d1420] p-4 md:p-5">
-                <MetricBig
-                  label="CRE Delinquency"
-                  value={data?.credit?.cre_delinquency_rate ?? 'N/A'}
-                  color={COLORS.red}
-                  sub="Commercial Real Estate stress"
-                  helpText="Commercial Real Estate (CRE) delinquency trend. Shows the percentage of CRE loans past due. Rising rates signal broader credit weakness. Lower is better."
-                />
-              </div>
-              <div className="flex flex-col items-center justify-center bg-[#0d1420] p-4 md:p-5">
-                <div
-                  className="mb-2 font-mono text-[10px] uppercase tracking-[0.1em] text-slate-500"
-                  title="Composite stress indicator derived from macro, risk, and credit signals. Gives a unified view of overall market stability."
-                  aria-label="Composite stress indicator derived from macro, risk, and credit signals. Gives a unified view of overall market stability."
-                >
-                  Systemic Risk
+            {/* Top Row: Executive Summary (Top-Left) + Core Gauges (Top-Right) */}
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.3fr_1fr]">
+              <ExecutiveSummaryPanel
+                data={data?.executive_summary}
+                riskScore={riskScore}
+              />
+
+              <div className="flex flex-col gap-px overflow-hidden rounded-lg border border-slate-800 bg-slate-800">
+                <div className="grid grid-cols-2 gap-px bg-slate-800">
+                  <div className="bg-[#0d1420] p-4">
+                    <MetricBig
+                      label="Risk Sentiment"
+                      value={riskScore}
+                      unit="/10"
+                      color={riskScore >= 7 ? COLORS.red : COLORS.amber}
+                      sub={data?.risk?.summary ?? 'Awaiting data...'}
+                      helpText="Overall market risk level from 0-10. 1-3 indicates a stable market. 4-6 shows moderate risk. 7-10 points to high systemic stress."
+                    />
+                  </div>
+                  <div className="bg-[#0d1420] p-4">
+                    <MetricBig
+                      label="Avg Mid-Cap ICR"
+                      value={avgMidCapIcr.toFixed(2)}
+                      unit="x"
+                      color={avgMidCapIcr < 1.5 ? COLORS.red : COLORS.green}
+                      sub={`Alert: ${data?.credit?.alert ? 'YES' : 'NO'}`}
+                      helpText="Interest Coverage Ratio (ICR) measures how easily companies can pay debt interest. Above 2.0x is healthy; below 1.5x suggests high default risk."
+                    />
+                  </div>
+                  <div className="bg-[#0d1420] p-4">
+                    <MetricBig
+                      label="PIK Issuance"
+                      value={data?.credit?.pik_debt_issuance ?? 'N/A'}
+                      color={COLORS.orange}
+                      sub="Deferred interest volume"
+                      helpText="Payment-In-Kind (PIK) debt activity. Companies pay interest with more debt instead of cash."
+                    />
+                  </div>
+                  <div className="bg-[#0d1420] p-4">
+                    <MetricBig
+                      label="CRE Delinquency"
+                      value={data?.credit?.cre_delinquency_rate ?? 'N/A'}
+                      color={COLORS.red}
+                      sub="Commercial Real Estate stress"
+                      helpText="Commercial Real Estate (CRE) delinquency trend. Rising rates signal broader credit weakness."
+                    />
+                  </div>
                 </div>
-                <RiskGauge data={data?.risk || { score: 0, summary: '' }} />
+                <div className="flex items-center justify-between bg-[#0d1420] p-4">
+                  <div className="font-mono text-[10px] uppercase tracking-[0.1em] text-slate-500">
+                    Systemic Stress Risk Gauge
+                  </div>
+                  <RiskGauge data={data?.risk || { score: 0, summary: '' }} />
+                </div>
               </div>
             </div>
+
+            {/* Macro Correlations & 5-Year Historical Trends Section */}
+            <MacroCorrelationsPanel data={data?.correlations} />
 
             {data?.macro_indicators && (
               <MacroIndicators data={data.macro_indicators} />
@@ -297,38 +301,14 @@ function App() {
               <div className="min-w-0">
                 <EventsFeed events={events} />
               </div>
-              <Card className="min-w-0 overflow-hidden">
-                <SectionTitle>Safe-Haven & Technicals</SectionTitle>
-                <div className="mb-4">
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="font-mono text-[10px] tracking-[0.1em] text-amber-500">CONTAGION ANALYSIS</span>
-                    <Shield size={14} color={COLORS.amber} />
-                  </div>
-                  <p className="text-xs leading-relaxed text-slate-400">{toDisplayText(data?.risk?.contagion_analysis, 'Waiting for analysis...')}</p>
-                </div>
-                <div className="my-3.5 h-px bg-slate-800" />
-                <div className="flex min-w-0 flex-col gap-3">
-                  <div className="flex min-w-0 flex-col gap-1">
-                    <span className="font-mono text-[10px] uppercase leading-relaxed text-slate-500">Gold Technicals</span>
-                    <Tag color={COLORS.amber} style={{ whiteSpace: 'normal', maxWidth: '100%', width: '100%', lineHeight: 1.45, fontSize: 12 }}>
-                      {typeof data?.risk?.gold_technical === 'object' ? JSON.stringify(data.risk.gold_technical) : (data?.risk?.gold_technical || 'N/A')}
-                    </Tag>
-                  </div>
-                  <div className="flex min-w-0 flex-col gap-1">
-                    <span className="font-mono text-[10px] uppercase leading-relaxed text-slate-500">USD Strength</span>
-                    <Tag color={COLORS.cyan} style={{ whiteSpace: 'normal', maxWidth: '100%', width: '100%', lineHeight: 1.45, fontSize: 12 }}>
-                      {typeof data?.risk?.usd_technical === 'object' ? JSON.stringify(data.risk.usd_technical) : (data?.risk?.usd_technical || 'N/A')}
-                    </Tag>
-                  </div>
-                </div>
-              </Card>
+              <SafeHavenTechnicals risk={data?.risk} crypto={data?.crypto_contagion} />
               <div className="min-w-0">
                 <PortfolioAdvice suggestions={suggestions} risks={mitigationSteps} />
               </div>
             </div>
 
-            <footer className="pb-8 pt-10 text-center font-mono text-[9px] uppercase tracking-[0.3em] text-slate-600">
-              Agentic Intelligence Terminal - Agent-UI Protocol - v5.0 Intro
+            <footer className="pb-8 pt-10 text-center font-mono text-[9px] uppercase tracking-[0.3em] text-slate-500">
+              Agentic Intelligence Terminal <span className="text-amber-400 font-bold">by Saud Aziz</span> — Agent-UI Protocol — v5.0 Intro
             </footer>
           </section>
         )}
