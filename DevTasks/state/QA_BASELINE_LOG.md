@@ -66,3 +66,28 @@ Checks run after implementation:
   - Result: response content type was `list`; normalized text was valid JSON and parsed successfully.
 - `GET /api/providers`
   - Result: returns `Gemini`, `OpenRouter`, `Ollama Gemma`, `Demo`.
+
+## T5 Feature Delivery Baseline & Validation - 2026-10-07
+
+Impacted scope:
+- Executive Summary Panel with everyday investor takeaways, 3 pillars, and action checklist/tripwires toggle.
+- 5-Year Historical Macro Correlations Panel (Treasuries 2Y/5Y/10Y, 10Y-2Y spread, and CBOE VIX).
+- Recession Playbook Deep-Dive Modal (Approach 1) with 4-stage transmission sequence and real-time readings & countdown tables.
+- Safe-Haven & Technicals Card: Contagion Analysis and USD Strength formatting (parsing Python dict and JSON strings into clean UI cards).
+- Gold Technicals spot price availability and key levels.
+- Browser window title set to "MacroDashboard by SaudAziz" in `index.html` and `App.tsx`.
+- Author attribution "by Saud Aziz" across top header, deep dive popup, executive summary, and terminal footer.
+
+Pre-Change Observations:
+- No executive summary panel or 5-year historical correlations chart existed in the UI.
+- Safe-Haven & Technicals section rendered raw unformatted Python dictionary strings `"{'credit_spreads': ...}"` and raw JSON `{"dxy_level": ...}` inside generic `<Tag>` and text tags.
+- Gold Technicals reported "Gold spot unavailable from configured source (live quote not retrieved)." because FRED mock was missing London fixing gold series.
+- Browser title defaulted to "frontend".
+
+Post-Implementation Checks & Verification:
+- `npm test`: pass, 10 tests across 4 files (`src/utils/sse.test.ts`, `src/utils/formatters.test.ts`, `src/api.test.ts`, `src/components/UIAtoms.test.tsx`).
+- `npm run build`: pass, production Vite bundle built cleanly.
+- `venv\Scripts\python.exe -m pytest tests/test_agent_response_normalization.py`: pass, 3 tests.
+- Browser title verified: `<title>MacroDashboard by SaudAziz</title>` in `src/frontend/index.html` and enforced via `document.title` on mount in `src/frontend/src/App.tsx`.
+- Live API endpoints verified: `GET /api/latest-dashboard` returning HTTP 200 with structured `correlations`, `executive_summary`, `gold_technical`, `usd_technical`, and `contagion_analysis`.
+- Git commits verified: `220884f` and `898c25b` pushed to GitHub on branch `develop`.

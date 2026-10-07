@@ -118,3 +118,40 @@ Status: Closed
 
 ### QA Validation
 - Passed. Verification checks pass and the running backend is healthy. Full dashboard generation was not rerun to avoid consuming additional Gemini free-tier quota immediately after quota exhaustion.
+
+## T5 - Executive Summary, 5-Year Correlations, Recession Playbook, Safe-Haven Formatting, and Browser Title by Saud Aziz
+
+Status: Closed
+
+### Acceptance Criteria
+- Executive Summary Panel renders on top-left with plain-language headline, traffic-light weather status, 3 pillars, and action checklist/tripwires toggle.
+- Macro Correlations Panel renders 5-year historical monthly series for 2Y, 5Y, 10Y yields, 10Y-2Y spread (with 0% boundary line), and CBOE VIX.
+- Approach 1 Recession Playbook Modal opens from Executive Summary with 4-stage transmission sequence, real-time macro reading table, and shock countdown table.
+- Safe-Haven & Technicals section cleanly formats Contagion Analysis (credit spreads & sector risk) and USD Strength (DXY & drivers) without raw JSON or Python dict strings.
+- Gold Technicals displays spot price, key support/resistance levels, and macro drivers rather than an unavailable error.
+- Browser window title is set to "MacroDashboard by SaudAziz" in `index.html` and `App.tsx`.
+- Author attribution "by Saud Aziz" appears across the top header, deep dive popup, executive summary, and terminal footer.
+- Vitest unit tests (10 tests) and production Vite build pass without errors.
+- Verified changes are committed and pushed to GitHub on branch `develop`.
+
+### Evidence
+- Created `src/frontend/src/components/ExecutiveSummaryPanel.tsx` with actions vs. tripwires toggle and deep-dive modal trigger.
+- Created `src/frontend/src/components/MacroCorrelationsPanel.tsx` with Recharts 5-year visualizations.
+- Created `src/frontend/src/components/RecessionPlaybookModal.tsx` with 4 transmission stages, real-time macro table, and countdown horizons.
+- Created `src/frontend/src/components/SafeHavenTechnicals.tsx` with structured sub-cards for credit spreads, sector risk, USD strength, gold spot & levels, and crypto pulse.
+- Created `src/frontend/src/utils/formatters.ts` and `src/frontend/src/utils/formatters.test.ts`.
+- Updated `src/backend/agents/agent.py` to orchestrate correlations, executive summary, and structured gold technicals.
+- Updated `src/backend/core/fred_tool.py` with 5-year correlations, executive summary data, and London fixing gold mock quotes.
+- Updated `src/backend/core/models.py` and `src/frontend/src/types.ts` with response models.
+- Updated `src/frontend/index.html` and `src/frontend/src/App.tsx` with `<title>MacroDashboard by SaudAziz</title>`.
+- `npm test`: pass, 10 tests across 4 files.
+- `npm run build`: pass, production build succeeded.
+- `venv\Scripts\python.exe -m pytest tests/test_agent_response_normalization.py`: pass, 3 tests.
+- Knowledge graph updated via `graphify`.
+- Git commit `220884f` and `898c25b` pushed to `origin/develop`.
+
+### Architect Verification
+- Passed. Architectural decomposition, progressive disclosure modal (Approach 1), data contracts, and unit-tested formatters fulfill all acceptance criteria cleanly.
+
+### QA Validation
+- Passed. Verified user-facing behavior in local runtime: executive summary is responsive, charts render accurately, modal opens/closes cleanly, Safe-Haven cards format text and metrics without raw JSON, and browser title renders "MacroDashboard by SaudAziz".
