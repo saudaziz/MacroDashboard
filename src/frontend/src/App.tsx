@@ -55,6 +55,7 @@ function App() {
   console.log('[App] Render State:', { loading, hasData: !!data, hasError: !!error, status });
 
   useEffect(() => {
+    document.title = 'MacroDashboard by SaudAziz';
     void bootstrap();
   }, [bootstrap]);
 
