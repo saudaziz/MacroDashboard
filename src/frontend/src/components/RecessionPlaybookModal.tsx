@@ -182,7 +182,7 @@ export const RecessionPlaybookModal: React.FC<RecessionPlaybookModalProps> = ({ 
               <div className="relative rounded-lg border-2 border-cyan-500 bg-cyan-950/30 p-3 flex flex-col justify-between shadow-lg shadow-cyan-950/50">
                 <div className="absolute -top-2.5 right-3 flex items-center gap-1 rounded-full bg-cyan-500 px-2 py-0.5 text-[9px] font-mono font-extrabold text-black uppercase tracking-wider shadow">
                   <MapPin size={10} className="fill-black" />
-                  <span>YOU ARE HERE</span>
+                  <span>WE ARE HERE</span>
                 </div>
                 <div>
                   <div className="font-mono text-[10px] text-cyan-400 uppercase font-bold mb-1">

@@ -66,12 +66,12 @@ describe('MacroIntelligenceEnhancements', () => {
     expect(screen.getByText(/Current Cycle: 2021–2026 Trajectory/i)).toBeInTheDocument();
   });
 
-  it('renders RecessionPlaybookModal with tightened stages, You Are Here indicator, and Timeline matrix', () => {
+  it('renders RecessionPlaybookModal with tightened stages, We Are Here indicator, and Timeline matrix', () => {
     const handleClose = vi.fn();
     render(<RecessionPlaybookModal isOpen={true} onClose={handleClose} />);
 
     // Stage 1 active indicator
-    expect(screen.getByText(/YOU ARE HERE/i)).toBeInTheDocument();
+    expect(screen.getByText(/WE ARE HERE/i)).toBeInTheDocument();
     expect(screen.getByText(/Yield Un-Inversion/i)).toBeInTheDocument();
 
     // Tightened Stage 3 (matches both transmission card and catalyst matrix)
@@ -93,18 +93,18 @@ describe('MacroIntelligenceEnhancements', () => {
   it('renders RiskGauge with dynamic risk tag labels for low, moderate, and crisis scores', () => {
     const { rerender } = render(<RiskGauge data={{ score: 5.0, summary: 'Moderate stress' }} />);
     expect(screen.getByText(/MODERATE RISK/i)).toBeInTheDocument();
-    expect(screen.getByText(/YOU ARE HERE \(5\.0\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/WE ARE HERE \(5\.0\)/i)).toBeInTheDocument();
     expect(screen.getByText(/Calm \/ Stable/i)).toBeInTheDocument();
     expect(screen.getByText(/Moderate \(Watch\)/i)).toBeInTheDocument();
     expect(screen.getByText(/Crisis Tripwire/i)).toBeInTheDocument();
 
     rerender(<RiskGauge data={{ score: 8.5, summary: 'High systemic stress' }} />);
     expect(screen.getByText(/SYSTEMIC ALERT/i)).toBeInTheDocument();
-    expect(screen.getByText(/YOU ARE HERE \(8\.5\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/WE ARE HERE \(8\.5\)/i)).toBeInTheDocument();
 
     rerender(<RiskGauge data={{ score: 2.1, summary: 'Benign liquidity' }} />);
     expect(screen.getByText(/LOW RISK/i)).toBeInTheDocument();
-    expect(screen.getByText(/YOU ARE HERE \(2\.1\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/WE ARE HERE \(2\.1\)/i)).toBeInTheDocument();
   });
 
   it('supports legacy arc variant when specified', () => {

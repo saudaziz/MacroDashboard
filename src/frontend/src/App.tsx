@@ -263,8 +263,9 @@ function App() {
                 riskScore={riskScore}
               />
 
-              <div className="flex flex-col gap-px overflow-hidden rounded-lg border border-slate-800 bg-slate-800">
-                {/* 1. TOP PORTION: Systemic Stress Risk Gauge with Linear Scale (Occupies the full top width) */}
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-px overflow-hidden rounded-lg border border-slate-800 bg-slate-800">
+                  {/* 1. TOP PORTION: Systemic Stress Risk Gauge with Linear Scale (Occupies the full top width) */}
                 <div className="bg-[#0d1420] p-4 flex flex-col gap-3">
                   <div className="flex items-center justify-between pb-2 border-b border-slate-800">
                     <div className="flex items-center gap-1.5">
@@ -391,13 +392,14 @@ function App() {
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* Macro Correlations & 5-Year Historical Trends with 3-Recession Sidebar */}
-            <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.7fr_1fr]">
-              <MacroCorrelationsPanel data={data?.correlations} />
+              {/* 3. Historical Comparison: Last 3 Recessions (Runs directly under Avg Mid-Cap, PIK, and CRE) */}
               <HistoricalComparisonSidebar />
             </div>
+          </div>
+
+          {/* Macro Correlations & 5-Year Historical Trends */}
+          <MacroCorrelationsPanel data={data?.correlations} />
 
             {data?.macro_indicators && (
               <MacroIndicators data={data.macro_indicators} />

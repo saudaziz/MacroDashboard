@@ -382,6 +382,52 @@ Status: Closed
   - Avg Mid-Cap ICR, PIK Issuance, and CRE Delinquency render side-by-side across 3 balanced columns underneath.
   - All 20 Vitest tests and 8 Pytest tests pass cleanly.
 
+## T12 - Relocate Historical Comparison Section & Unify "We Are Here" Phrasing
+
+Status: Closed
+
+### Acceptance Criteria
+- **T12.1 Layout Relocation of Historical Comparison**:
+  - In `src/frontend/src/App.tsx`, move `HistoricalComparisonSidebar` to run underneath the `Avg Mid-Cap ICR`, `PIK Issuance`, and `CRE Delinquency` metrics section in the right-hand Core Panels column.
+  - Remove `HistoricalComparisonSidebar` from its former row next to `MacroCorrelationsPanel`, allowing `MacroCorrelationsPanel` to render across the full container width.
+- **T12.2 Global "We Are Here" Phrasing Update**:
+  - Update `src/frontend/src/components/RiskGauge.tsx`: Replace "YOU ARE HERE ({clampedScore.toFixed(1)})" with "WE ARE HERE ({clampedScore.toFixed(1)})".
+  - Update `src/frontend/src/components/RecessionPlaybookModal.tsx`: Replace "YOU ARE HERE" with "WE ARE HERE" on the active Stage 1 indicator.
+- **T12.3 Unit Test Suite Alignment**:
+  - Update unit test assertions in `src/frontend/src/components/MacroIntelligenceEnhancements.test.tsx` to assert "WE ARE HERE".
+- **T12.4 Verification and Zero Regression**:
+  - All Vitest and Pytest test suites pass with 100% success rate.
+  - Frontend production build compiles without errors.
+
+### Evidence
+- Modified `src/frontend/src/App.tsx`:
+  - Enclosed right column of Core Panels row in `flex flex-col gap-4`.
+  - Moved `<HistoricalComparisonSidebar />` directly underneath the 3-column credit metrics grid (Avg Mid-Cap ICR, PIK Issuance, CRE Delinquency).
+  - Expanded `<MacroCorrelationsPanel data={data?.correlations} />` to span the full container width on its row.
+- Modified `src/frontend/src/components/RiskGauge.tsx`:
+  - Updated indicator pin badge from `"YOU ARE HERE ({clampedScore.toFixed(1)})"` to `"WE ARE HERE ({clampedScore.toFixed(1)})"`.
+- Modified `src/frontend/src/components/RecessionPlaybookModal.tsx`:
+  - Updated Stage 1 active locator badge from `"YOU ARE HERE"` to `"WE ARE HERE"`.
+- Modified `src/frontend/src/components/MacroIntelligenceEnhancements.test.tsx`:
+  - Updated all regex assertions to match `"WE ARE HERE"`.
+- Test Suites:
+  - Vitest: 20/20 tests passing across 5 test files.
+  - Pytest: 8/8 tests passing across 2 test files.
+  - Vite production build: compiled cleanly (`dist/assets/index-Cinwx0gs.js`).
+
+### Architect Verification
+- Passed. Verified that `HistoricalComparisonSidebar` is positioned directly beneath the 3 credit metric boxes in the right column, and `MacroCorrelationsPanel` now spans the entire horizontal viewport width. Verified that all occurrences of "YOU ARE HERE" have been transformed to "WE ARE HERE" across the linear risk gauge, modal, and test suites.
+
+### QA Validation
+- Passed. Verified runtime rendering:
+  - Systemic Stress Risk Gauge shows `WE ARE HERE (5.0)` marker on the linear bar scale.
+  - Recession Playbook Modal shows `WE ARE HERE` on the Stage 1 Yield Un-Inversion card.
+  - Historical Comparison section sits cleanly beneath the ICR, PIK, and CRE cards.
+  - Macro Correlations panel takes full container width, improving chart readability.
+  - 100% pass across all 20 frontend Vitest tests, 8 backend Pytest tests, and production build.
+
+
+
 
 
 

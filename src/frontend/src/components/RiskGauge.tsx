@@ -54,7 +54,7 @@ export const RiskGauge: React.FC<RiskGaugeProps> = ({ data, tagLabel, variant = 
     );
   }
 
-  // Linear multi-level bar scale with level points and "YOU ARE HERE" pin indicator
+  // Linear multi-level bar scale with level points and "WE ARE HERE" pin indicator
   return (
     <div className="w-full flex flex-col gap-2 pt-1" role="img" aria-label={`Systemic risk score ${clampedScore.toFixed(1)} out of 10`}>
       {/* Top score headline */}
@@ -76,7 +76,7 @@ export const RiskGauge: React.FC<RiskGaugeProps> = ({ data, tagLabel, variant = 
 
       {/* Linear Track Container with Indicator Pin */}
       <div className="relative pt-6 pb-1">
-        {/* "YOU ARE HERE" Pin Indicator on Linear Bar */}
+        {/* "WE ARE HERE" Pin Indicator on Linear Bar */}
         <div
           className="absolute top-0 -translate-x-1/2 flex flex-col items-center z-10 transition-all duration-500"
           style={{ left: `${Math.max(3, Math.min(97, pct))}%` }}
@@ -90,7 +90,7 @@ export const RiskGauge: React.FC<RiskGaugeProps> = ({ data, tagLabel, variant = 
             }}
           >
             <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ backgroundColor: color }} />
-            <span>YOU ARE HERE ({clampedScore.toFixed(1)})</span>
+            <span>WE ARE HERE ({clampedScore.toFixed(1)})</span>
           </div>
           <div
             className="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[5px]"
