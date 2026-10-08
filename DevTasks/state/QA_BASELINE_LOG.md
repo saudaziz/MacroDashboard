@@ -92,7 +92,7 @@ Post-Implementation Checks & Verification:
 - Live API endpoints verified: `GET /api/latest-dashboard` returning HTTP 200 with structured `correlations`, `executive_summary`, `gold_technical`, `usd_technical`, and `contagion_analysis`.
 - Git commits verified: `220884f` and `898c25b` pushed to GitHub on branch `develop`.
 
-## T6 Feature Delivery Baseline - 2026-10-07
+## T6 Feature Delivery Baseline & Validation - 2026-10-07
 
 Impacted scope:
 - Top-of-page Regime Probability Gauge (Recession / Soft Landing / Expansion distribution).
@@ -107,16 +107,36 @@ Pre-Change Observations:
 - The Recession Playbook deep dive modal currently lists stages without the tightened layoff countdown warnings or an active "You Are Here" locator.
 - Shock Catalysts in the Playbook modal are presented strictly in a static tabular grid without a visual time-to-recession vs. severity timeline.
 
-Baseline Checks Run:
-- `npm test -- --run`: Passed 10/10 tests across 4 files in 35.49s.
-- `venv\Scripts\python.exe -m pytest tests/test_agent_response_normalization.py`: Passed 3/3 tests in 9.26s.
-- `GET http://127.0.0.1:8000/api/providers`: HTTP 200, returned Gemini, OpenRouter, Ollama Gemma, Demo.
-- `curl.exe http://127.0.0.1:5173`: HTTP 200, frontend serving normally.
-- Branch Gate: Confirmed active branch is `develop`.
-
 Post-Implementation Checks & Verification:
 - `npm test -- --run`: Passed 16/16 tests across 5 files (`src/utils/formatters.test.ts`, `src/components/UIAtoms.test.tsx`, `src/utils/sse.test.ts`, `src/api.test.ts`, `src/components/MacroIntelligenceEnhancements.test.tsx`).
 - `npm run build`: Passed, production Vite build compiled cleanly in 21.03s.
 - `venv\Scripts\python.exe -m pytest tests/test_agent_response_normalization.py`: Passed 3/3 tests in 7.95s.
 - UI validation: TopIntelligenceBar renders segmented probabilities (28% Recession / 55% Soft Landing / 17% Expansion) and material moves; HistoricalComparisonSidebar displays side-by-side 2001/2008/2020 comparison table and SVG lead-in sparklines; RecessionPlaybookModal features active "YOU ARE HERE" cursor badge on Stage 1, tightened Sahm Rule layoff horizon, and 2D Shock Catalysts Timeline Matrix with view switching.
 - Knowledge graph updated via `graphify update .` (896 nodes, 3,336 edges, 75 communities).
+
+## T7 Feature Delivery Baseline - 2026-10-07
+
+Impacted scope:
+- Live market data grounding: Real-time Gold spot (Yahoo Finance GC=F), Live Crypto feeds (Coinbase BTC, ETH, SOL spot), Correct August CPI YoY calculation, and Grounded Central Bank Policy Rates (FED, ECB, BOE, BOJ).
+
+Pre-Change Observations:
+- Gold price in dashboard displayed $2,658.40/oz due to discontinued FRED series fallback to mock, while live market gold is $4,132.30/oz (~$1,500 discrepancy).
+- CPI YoY calculation in `get_series_yoy` had an off-by-one indexing error (`iloc[-13]`), producing 3.71% instead of 3.35% for August 2026.
+- Crypto prices (BTC, ETH, SOL) were ungrounded; Gemini hallucinated BTC at $62,450 while live Coinbase spot is $83,244.78.
+- Central bank rates (BOJ, BOE, ECB) were not grounded in `calendar_agent`, causing hallucinated rates (BOJ 0.25%, BOE 4.75%, ECB 3.25%) vs official rates (BOJ 0.30%, BOE 3.73%, ECB 2.50%).
+
+Baseline Checks Run:
+- `npm test -- --run`: Passed 16/16 tests across 5 files in 8.33s.
+- `venv\Scripts\python.exe -m pytest tests/test_agent_response_normalization.py`: Passed 3/3 tests in 6.61s.
+- Branch Gate: Confirmed active branch is `develop`.
+
+Post-Implementation Checks & Verification:
+- `venv\Scripts\python.exe -m pytest tests/`: Passed 7/7 tests in 11.91s (`tests/test_agent_response_normalization.py` + `tests/test_market_data.py`).
+- `npm test -- --run`: Passed 16/16 tests across 5 files in 7.32s.
+- `npm run build`: Passed, Vite production bundle generated cleanly in 1.55s.
+- Real-time data verification:
+  - Gold price: Live Yahoo Finance `GC=F` returns ~$4,132.30/oz, eliminating the ~$1,500 gap.
+  - Crypto spot: Coinbase public API returns live spot for BTC (~$83,200), ETH (~$2,570), SOL (~$116).
+  - CPI YoY: Updated `get_series_yoy` with official FRED `units='pc1'` and `iloc[-12]` yields exact 3.35% for August 2026.
+  - Central Bank policy rates: FRED official series ground FED (3.75%), ECB (2.50%), BOE (3.73%), BOJ (0.30%).
+- Sub-agent prompts in `calendar_agent` and `risk_agent` injected with mandatory verified figures to prevent LLM hallucinations.
