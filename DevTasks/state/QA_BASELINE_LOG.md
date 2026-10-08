@@ -91,3 +91,32 @@ Post-Implementation Checks & Verification:
 - Browser title verified: `<title>MacroDashboard by SaudAziz</title>` in `src/frontend/index.html` and enforced via `document.title` on mount in `src/frontend/src/App.tsx`.
 - Live API endpoints verified: `GET /api/latest-dashboard` returning HTTP 200 with structured `correlations`, `executive_summary`, `gold_technical`, `usd_technical`, and `contagion_analysis`.
 - Git commits verified: `220884f` and `898c25b` pushed to GitHub on branch `develop`.
+
+## T6 Feature Delivery Baseline - 2026-10-07
+
+Impacted scope:
+- Top-of-page Regime Probability Gauge (Recession / Soft Landing / Expansion distribution).
+- "What Changed Since Yesterday?" material moves alert strip.
+- Historical Comparison Sidebar & 3-Recession Overlay (2001 Dot-Com, 2008 GFC, 2020 COVID vs. Now).
+- Recession Playbook deep-dive upgrades: Tightened stage descriptions with active "You Are Here" indicator, one-liner significance, and interactive Shock Catalysts timeline (Time to Recession vs. Severity).
+
+Pre-Change Observations:
+- Dashboard top header lacks a consolidated Regime Probability horizontal bar synthesizing indicators into a single metric.
+- No "What Changed Since Yesterday?" callout exists to display 24h material movements (e.g. Fed Funds, VIX, 10Y-2Y spread).
+- Macro Correlations and safe haven sections do not have a side-by-side historical comparison column showing 2001, 2008, 2020 values with lead-in sparklines.
+- The Recession Playbook deep dive modal currently lists stages without the tightened layoff countdown warnings or an active "You Are Here" locator.
+- Shock Catalysts in the Playbook modal are presented strictly in a static tabular grid without a visual time-to-recession vs. severity timeline.
+
+Baseline Checks Run:
+- `npm test -- --run`: Passed 10/10 tests across 4 files in 35.49s.
+- `venv\Scripts\python.exe -m pytest tests/test_agent_response_normalization.py`: Passed 3/3 tests in 9.26s.
+- `GET http://127.0.0.1:8000/api/providers`: HTTP 200, returned Gemini, OpenRouter, Ollama Gemma, Demo.
+- `curl.exe http://127.0.0.1:5173`: HTTP 200, frontend serving normally.
+- Branch Gate: Confirmed active branch is `develop`.
+
+Post-Implementation Checks & Verification:
+- `npm test -- --run`: Passed 16/16 tests across 5 files (`src/utils/formatters.test.ts`, `src/components/UIAtoms.test.tsx`, `src/utils/sse.test.ts`, `src/api.test.ts`, `src/components/MacroIntelligenceEnhancements.test.tsx`).
+- `npm run build`: Passed, production Vite build compiled cleanly in 21.03s.
+- `venv\Scripts\python.exe -m pytest tests/test_agent_response_normalization.py`: Passed 3/3 tests in 7.95s.
+- UI validation: TopIntelligenceBar renders segmented probabilities (28% Recession / 55% Soft Landing / 17% Expansion) and material moves; HistoricalComparisonSidebar displays side-by-side 2001/2008/2020 comparison table and SVG lead-in sparklines; RecessionPlaybookModal features active "YOU ARE HERE" cursor badge on Stage 1, tightened Sahm Rule layoff horizon, and 2D Shock Catalysts Timeline Matrix with view switching.
+- Knowledge graph updated via `graphify update .` (896 nodes, 3,336 edges, 75 communities).

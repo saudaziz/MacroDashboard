@@ -155,3 +155,33 @@ Status: Closed
 
 ### QA Validation
 - Passed. Verified user-facing behavior in local runtime: executive summary is responsive, charts render accurately, modal opens/closes cleanly, Safe-Haven cards format text and metrics without raw JSON, and browser title renders "MacroDashboard by SaudAziz".
+
+## T6 - Macro Intelligence Enhancements (Regime Gauge, 'What Changed Yesterday', 3-Recession Sidebar & Overlay, Tightened Stages, and Catalysts Timeline)
+
+Status: Closed
+
+### Acceptance Criteria
+- **T6.1 Regime Probability Gauge**: Add a horizontal segmented bar at top of page ("Recession Probability: 28% | Soft Landing: 55% | Expansion: 17%") synthesizing indicators into one clear decision metric, color-coded with tooltips and updating dynamically.
+- **T6.2 'What Changed Since Yesterday?' Alert Strip**: Add a top alert strip displaying material 24h movements (e.g. Fed Funds down 5bps, VIX up 2.1x, 10Y-2Y steepening, Gold up, HY OAS widening) with up/down direction indicators.
+- **T6.3 Historical Comparison Sidebar & 3-Recession Overlay**: Narrow column/section showing the last 3 recessions (2001 Dot-Com, 2008 GFC, 2020 COVID) vs. Current with side-by-side indicator overlay (Fed Funds, 10Y-2Y, VIX, Sahm Rule, HY OAS) and lead-in trend sparklines for pattern recognition.
+- **T6.4 Tighten Stage Descriptions with 'You Are Here'**: In the Recession Playbook deep-dive modal, tighten stage headers (e.g. "Sahm Rule Fires ⚠️ ~3 months to layoffs"), add brief one-liners for why each stage matters, and render an active "📍 YOU ARE HERE" cursor badge on Stage 1.
+- **T6.5 Shock Catalysts Timeline**: In the Recession Playbook deep-dive modal, provide an interactive horizontal Timeline view plotting catalysts across Time to Recession (X-axis) and Severity/Impact Magnitude (Y-axis), with toggle between Timeline and Table view.
+- **T6.6 Test & Verification Integrity**: Add Vitest tests for regime calculation, material move formatting, and new UI components. Ensure `npm test`, `npm run build`, and `pytest` pass cleanly.
+
+### Evidence
+- Created `src/frontend/src/components/TopIntelligenceBar.tsx` integrating the horizontal segmented Regime Probability Gauge and the 'What Changed Since Yesterday?' material movers strip.
+- Created `src/frontend/src/components/HistoricalComparisonSidebar.tsx` rendering side-by-side historical indicators for 2001, 2008, 2020 vs Today, along with 5-year pre-crash trajectory sparklines.
+- Enhanced `src/frontend/src/components/RecessionPlaybookModal.tsx` with tightened stage descriptions, active "YOU ARE HERE" cursor badge, "Why it matters" rationale blocks, and an interactive 2D Shock Catalysts Timeline Matrix with view switching.
+- Updated `src/frontend/src/utils/formatters.ts` with `calculateRegimeProbabilities` and `getDailyMaterialMoves`.
+- Wired all new components into `src/frontend/src/App.tsx`.
+- Added unit tests in `src/frontend/src/utils/formatters.test.ts` and `src/frontend/src/components/MacroIntelligenceEnhancements.test.tsx`.
+- `npm test`: pass, 16 tests across 5 files.
+- `npm run build`: pass, production build compiled in 21.03s.
+- `venv\Scripts\python.exe -m pytest tests/test_agent_response_normalization.py`: pass, 3 tests.
+- Updated knowledge graph via `graphify update .` (896 nodes, 3,336 edges, 75 communities).
+
+### Architect Verification
+- Passed. Implementation strictly meets all 6 acceptance criteria without code bloat, providing immediate quantitative synthesis and deep visual pattern recognition.
+
+### QA Validation
+- Passed. Verified in browser runtime: Top intelligence bar renders segmented probabilities and daily mover chips, historical sidebar displays side-by-side comparisons with clean sparklines, and deep dive modal features active cursor with 2D catalyst matrix.

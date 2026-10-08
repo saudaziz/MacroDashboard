@@ -5,6 +5,8 @@ import { CreditPanel } from './components/CreditPanel';
 import { MacroIndicators } from './components/MacroIndicators';
 import { ExecutiveSummaryPanel } from './components/ExecutiveSummaryPanel';
 import { MacroCorrelationsPanel } from './components/MacroCorrelationsPanel';
+import { HistoricalComparisonSidebar } from './components/HistoricalComparisonSidebar';
+import { TopIntelligenceBar } from './components/TopIntelligenceBar';
 import { EventsFeed } from './components/EventsFeed';
 import { PortfolioAdvice } from './components/PortfolioAdvice';
 import { RiskGauge } from './components/RiskGauge';
@@ -229,7 +231,15 @@ function App() {
                </div>
             )}
 
-            {/* Top Row: Executive Summary (Top-Left) + Core Gauges (Top-Right) */}
+            {/* Top Row: Regime Probability Gauge & 'What Changed Yesterday?' Strip */}
+            <TopIntelligenceBar
+              riskScore={riskScore}
+              spread10Y2Y={0.48}
+              icr={avgMidCapIcr}
+              vix={15.52}
+            />
+
+            {/* Core Panels Row: Executive Summary (Left) + Core Key Gauges (Right) */}
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.3fr_1fr]">
               <ExecutiveSummaryPanel
                 data={data?.executive_summary}
@@ -286,8 +296,11 @@ function App() {
               </div>
             </div>
 
-            {/* Macro Correlations & 5-Year Historical Trends Section */}
-            <MacroCorrelationsPanel data={data?.correlations} />
+            {/* Macro Correlations & 5-Year Historical Trends with 3-Recession Sidebar */}
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.7fr_1fr]">
+              <MacroCorrelationsPanel data={data?.correlations} />
+              <HistoricalComparisonSidebar />
+            </div>
 
             {data?.macro_indicators && (
               <MacroIndicators data={data.macro_indicators} />

@@ -6,22 +6,18 @@
 
 ## Current Owner
 - Owner: QA / Architect
-- Active task: T5 - Executive Summary, 5-Year Correlations, Recession Playbook Deep-Dive, Safe-Haven Formatting, and Browser Title by Saud Aziz
-- Next step: All tasks closed, code verified, and pushed to GitHub on branch `develop`.
+- Active task: T6 - Macro Intelligence Enhancements (Regime Probability Gauge, 'What Changed Since Yesterday?', Historical 3-Recession Sidebar, Tightened Stages with 'You Are Here', and Shock Catalysts Timeline)
+- Next step: All T6 acceptance criteria met and verified; ready for check-in and push on `develop`.
 
 ## Scope
-- Deliver plain-English Executive Summary with traffic-light weather status, 3 pillars, and action checklist/tripwires.
-- Build 5-year historical macro correlation visualizer (Treasury yields, 10Y-2Y yield curve spread, and CBOE VIX).
-- Build Approach 1 Recession Playbook deep-dive modal featuring the 4-stage transmission sequence, real-time macro reading tables, and shock countdown horizons.
-- Fix unformatted Contagion Analysis and USD Strength sections to cleanly parse and render structured cards, spot prices, key support/resistance levels, and drivers without raw JSON/dict strings.
-- Fix Gold Technicals unavailable message by adding London fixing mock prices and structured JSON synthesizer.
-- Set browser window title to "MacroDashboard by SaudAziz" in `index.html` and `App.tsx`.
-- Add author branding "by Saud Aziz" across the top navbar, deep dive modal, executive summary card, and terminal footer.
-- Check in and push all verified changes to GitHub on branch `develop`.
+- T6.1: Regime Probability Gauge & 'What Changed Since Yesterday?' material moves ticker strip.
+- T6.2: Historical Comparison Sidebar & 3-Recession Overlay (2001, 2008, 2020 vs. Current with sparklines).
+- T6.3: Recession Playbook Enhancements: Tightened Stage Descriptions with 'You Are Here' cursor/badge and interactive Shock Catalysts Timeline (time vs severity).
 
 ## Outcome
 - T1 completed: Metric tooltips accessible and tested.
 - T2 completed: OpenRouter authentication failure root-caused.
 - T3 completed: Gemini list-part response failure root-caused.
 - T4 completed: Gemini response normalization and quota detection implemented.
-- T5 completed: Full executive summary, 5yr correlations, recession playbook modal, safe-haven formatters, gold technicals, browser title, and attribution by Saud Aziz verified across Vitest (10 tests), Vite build, Python tests, and pushed to GitHub on `develop`.
+- T5 completed: Full executive summary, 5yr correlations, recession playbook modal, safe-haven formatters, gold technicals, browser title, and attribution by Saud Aziz merged into main and pushed to GitHub.
+- T6 completed: Regime Probability Gauge, 'What Changed Yesterday' strip, 3-Recession Sidebar with sparklines, tightened stages with 'You Are Here', and Shock Catalysts 2D Timeline Matrix implemented, covered by 16 Vitest tests, verified with clean production build, and closed.
