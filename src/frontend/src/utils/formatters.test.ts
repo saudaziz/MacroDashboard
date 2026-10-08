@@ -55,12 +55,44 @@ describe('formatters', () => {
     expect(lowRisk.recessionProb + lowRisk.softLandingProb + lowRisk.expansionProb).toBe(100);
   });
 
-  it('returns daily material moves with expected attributes', () => {
+  it('returns daily material moves with calibrated fallback values', () => {
     const moves = getDailyMaterialMoves();
     expect(moves.length).toBeGreaterThanOrEqual(4);
     const fedFunds = moves.find((m) => m.id === 'fedfunds');
     expect(fedFunds).toBeDefined();
+    expect(fedFunds?.currentValue).toBe('3.75%');
     expect(fedFunds?.changeText).toBe('-5 bps');
     expect(fedFunds?.direction).toBe('down');
+
+    const gold = moves.find((m) => m.id === 'gold');
+    expect(gold).toBeDefined();
+    expect(gold?.currentValue).toBe('$4,132/oz');
+  });
+
+  it('dynamically extracts live gold and fed funds from dashboard payload in getDailyMaterialMoves', () => {
+    const mockData = {
+      macro_indicators: {
+        fed_funds_rate: { value: '3.75%' },
+        yield_curve_2y_10y: { value: '+0.52%' },
+      },
+      risk: {
+        gold_technical: JSON.stringify({ spot_price: 4145.50 }),
+      },
+      credit: {
+        mid_cap_hy_oas: '310 bps',
+      },
+    };
+    const moves = getDailyMaterialMoves(mockData);
+    const fedFunds = moves.find((m) => m.id === 'fedfunds');
+    expect(fedFunds?.currentValue).toBe('3.75%');
+
+    const gold = moves.find((m) => m.id === 'gold');
+    expect(gold?.currentValue).toBe('$4,146/oz');
+
+    const spread = moves.find((m) => m.id === 't10y2y');
+    expect(spread?.currentValue).toBe('+0.52%');
+
+    const oas = moves.find((m) => m.id === 'hy_oas');
+    expect(oas?.currentValue).toBe('310 bps');
   });
 });

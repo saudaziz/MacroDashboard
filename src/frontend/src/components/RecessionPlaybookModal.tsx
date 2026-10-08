@@ -302,7 +302,7 @@ export const RecessionPlaybookModal: React.FC<RecessionPlaybookModalProps> = ({ 
                   <tr className="hover:bg-slate-800/20">
                     <td className="py-2 px-3 font-semibold text-slate-200">Effective Fed Funds (DFF)</td>
                     <td className="py-2 px-3 text-slate-500">DFF</td>
-                    <td className="py-2 px-3 text-amber-400 font-bold">3.88%</td>
+                    <td className="py-2 px-3 text-amber-400 font-bold">3.75%</td>
                     <td className="py-2 px-3 text-slate-400">2.50% – 3.25%</td>
                     <td className="py-2 px-3 text-red-300">Emergency inter-meeting cuts</td>
                     <td className="py-2 px-3"><span className="rounded bg-slate-700/60 text-slate-300 px-2 py-0.5 text-[10px]">Elevated</span></td>

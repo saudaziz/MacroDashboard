@@ -19,7 +19,7 @@ const HISTORICAL_OVERLAYS: IndicatorOverlay[] = [
     val2001: '6.50% peak',
     val2008: '5.25% → 2.0%',
     val2020: '1.75% → 0.25%',
-    valNow: '3.88% (cuts begun)',
+    valNow: '3.75% (cuts begun)',
     significance: 'Rate cut velocity indicates whether Fed is normalizing or panic-easing.',
     status: 'watch',
   },
@@ -233,7 +233,7 @@ export const HistoricalComparisonSidebar: React.FC = () => {
               <span className="text-[10px] font-mono text-cyan-400 font-semibold">Active Window</span>
             </div>
             <div className="flex items-center justify-between">
-              <Sparkline points={[0.25, 1.5, 4.5, 5.5, 5.25, 4.5, 3.88]} color="#06b6d4" />
+              <Sparkline points={[0.25, 1.5, 4.5, 5.5, 5.25, 4.5, 3.75]} color="#06b6d4" />
               <p className="text-[10px] text-slate-300 max-w-[190px] leading-snug">
                 ZIRP → aggressive hikes to 5.5% → 2yr inversion → steepening un-inversion (+0.48%) active now.
               </p>

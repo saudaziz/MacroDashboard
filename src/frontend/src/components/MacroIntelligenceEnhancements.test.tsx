@@ -16,6 +16,8 @@ describe('MacroIntelligenceEnhancements', () => {
     expect(screen.getByText(/What Changed Since Yesterday:/i)).toBeInTheDocument();
     expect(screen.getByText(/Fed Funds/i)).toBeInTheDocument();
     expect(screen.getByText(/-5 bps/i)).toBeInTheDocument();
+    expect(screen.getByText(/Gold Spot/i)).toBeInTheDocument();
+    expect(screen.getByText(/\(\$4,132\/oz\)/i)).toBeInTheDocument();
   });
 
   it('renders HistoricalComparisonSidebar and toggles between Overlay and Sparklines', () => {

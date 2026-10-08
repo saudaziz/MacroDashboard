@@ -219,3 +219,41 @@ Status: Closed
 
 ### QA Validation
 - Passed. Verified all 7 pytest tests and 16 Vitest tests passing. Gold prices align with global commodity markets (~$4,132/oz), crypto spot prices reflect live Coinbase markets, Central Bank policy rates match official central bank releases, and August CPI YoY equals official 3.35%.
+
+## T8 - Comprehensive Frontend & Agent Indicator Grounding (Gold, Fed Funds, CPI, Central Bank Rates)
+
+Status: Closed
+
+### Acceptance Criteria
+- **T8.1 Dynamic Material Moves in TopIntelligenceBar**: Update `getDailyMaterialMoves` in `src/frontend/src/utils/formatters.ts` to accept `data?: DashboardData` (or options) and extract live Gold spot (`data.risk.gold_technical`), Fed Funds (`data.macro_indicators.fed_funds_rate` or `data.calendar.rates`), BTC spot (`data.crypto_contagion`), 10Y-2Y spread, and VIX. Calibrate default fallbacks to verified live figures (Gold: `$4,132/oz`, Fed Funds: `3.75%`, BTC: `$83,200`).
+- **T8.2 Wire Live Data in TopIntelligenceBar & App.tsx**: In `App.tsx`, pass `data` (or extracted indicators `goldSpot`, `fedFundsRate`, `cryptoData`) into `TopIntelligenceBar`, ensuring the "What Changed Since Yesterday" bar dynamically reflects the grounded live values.
+- **T8.3 Calibrate SafeHavenTechnicals Fallbacks**: In `SafeHavenTechnicals.tsx`, update default support/resistance and source: anchor support/resistance dynamically relative to `goldSpot` (e.g. `$4,080` / `$4,170` instead of stale `$2,600` / `$2,700`), and source to `'Yahoo Finance (GC=F) / LBMA'`.
+- **T8.4 Update Fed Funds & Benchmarks across Historical & Playbook Views**: In `HistoricalComparisonSidebar.tsx` and `RecessionPlaybookModal.tsx`, update current Fed Funds values to `3.75%` (matching official FRED benchmark) and update sparkline point to `3.75`.
+- **T8.5 Ground Macro Indicators Sub-Agent**: In `src/backend/agents/agent.py`, update `macro_indicators_agent` to explicitly inject verified ground-truth values (Fed Funds 3.75%, CPI YoY 3.35%, Core PCE 3.01%, 10Y-2Y spread 0.48%) in prompt, and ensure `aggregator_node` defaults missing indicator values to ground truth.
+- **T8.6 Automated Test Coverage & Verification**: Update unit tests in `src/frontend/src/utils/formatters.test.ts` and `src/frontend/src/components/MacroIntelligenceEnhancements.test.tsx` to verify dynamic extraction of gold spot, Fed funds, and calibrated fallbacks. Run full pytest, vitest, and build verification.
+
+### Evidence
+- Updated `src/frontend/src/utils/formatters.ts` `getDailyMaterialMoves(data?: any)` to dynamically ingest live Gold spot, Fed funds rate, 10Y-2Y spread, and HY OAS from dashboard payload, with baseline calibrated to `$4,132/oz` (Gold) and `3.75%` (Fed Funds).
+- Wired `data={data}` in `src/frontend/src/App.tsx` and updated `TopIntelligenceBar.tsx` to pass `data` into `getDailyMaterialMoves(data)`.
+- Calibrated `src/frontend/src/components/SafeHavenTechnicals.tsx`:
+  - `goldSpot` default fallback updated to `$4,132.30`.
+  - `defaultSupport` and `defaultResistance` dynamically computed from spot (`$4,090` / `$4,170`) instead of hardcoded `$2,600` / `$2,700`.
+  - Source updated to `'Yahoo Finance (GC=F) / LBMA'`.
+- Synchronized benchmark rates across historical views:
+  - `src/frontend/src/components/HistoricalComparisonSidebar.tsx`: updated current Fed Funds to `3.75% (cuts begun)` and sparkline point to `3.75`.
+  - `src/frontend/src/components/RecessionPlaybookModal.tsx`: updated effective Fed Funds (DFF) to `3.75%`.
+  - `src/frontend/src/components/Calendar.tsx`: added official benchmark fallback policy rates (`FED` 3.75%, `ECB` 2.50%, `BOE` 3.73%, `BOJ` 0.30%).
+- Grounded `src/backend/agents/agent.py`:
+  - Injected mandatory verified figures into `macro_indicators_agent` prompt (Fed Funds 3.75%, CPI 3.35%, PCE 3.01%, 10Y-2Y +0.48%, 10Y-3M +1.06%, UNRATE 4.0%, M2 23,340B).
+  - In `aggregator_node`, ensured `indicators_model` calibrates missing or blank fields directly from `ground_truth`.
+- Test Suites:
+  - `npm test -- --run`: 17/17 tests passing across 5 test suites.
+  - `npm run build`: Vite production bundle compiled cleanly in 1.80s.
+  - `venv\Scripts\python.exe -m pytest tests/`: 7/7 tests passing in 12.22s.
+
+### Architect Verification
+- Passed. All frontend indicator consumers and backend agent aggregators are strictly synchronized with the real-time ground-truth architecture. Zero stale $2,600 or 3.88% values remain in the UI or fallback paths.
+
+### QA Validation
+- Passed. Verified all 17 Vitest tests, 7 Pytest tests, and Vite production build. Under the Regime Probability Gauge, the "What Changed Since Yesterday" ticker now shows Gold Spot at $4,132/oz and Fed Funds at 3.75%. SafeHavenTechnicals, HistoricalComparisonSidebar, and Calendar all display grounded, live-aligned benchmarks.
+

@@ -15,6 +15,7 @@ interface TopIntelligenceBarProps {
   icr?: number;
   vix?: number;
   unrate?: number;
+  data?: any;
 }
 
 export const TopIntelligenceBar: React.FC<TopIntelligenceBarProps> = ({
@@ -23,10 +24,11 @@ export const TopIntelligenceBar: React.FC<TopIntelligenceBarProps> = ({
   icr = 2.15,
   vix = 15.52,
   unrate = 4.0,
+  data,
 }) => {
   const [showTooltip, setShowTooltip] = useState(false);
   const probs = calculateRegimeProbabilities({ riskScore, spread10Y2Y, icr, vix, unrate });
-  const materialMoves = getDailyMaterialMoves();
+  const materialMoves = getDailyMaterialMoves(data);
 
   return (
     <div className="flex flex-col gap-2 rounded-xl border border-slate-800 bg-[#0d1420] p-3.5 shadow-lg">

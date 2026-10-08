@@ -140,3 +140,33 @@ Post-Implementation Checks & Verification:
   - CPI YoY: Updated `get_series_yoy` with official FRED `units='pc1'` and `iloc[-12]` yields exact 3.35% for August 2026.
   - Central Bank policy rates: FRED official series ground FED (3.75%), ECB (2.50%), BOE (3.73%), BOJ (0.30%).
 - Sub-agent prompts in `calendar_agent` and `risk_agent` injected with mandatory verified figures to prevent LLM hallucinations.
+
+## T8 Feature Delivery Baseline - 2026-10-07
+
+Impacted scope:
+- UI components displaying macro indicators and daily material moves: `TopIntelligenceBar` / `getDailyMaterialMoves`, `SafeHavenTechnicals`, `HistoricalComparisonSidebar`, `RecessionPlaybookModal`, and `Calendar`.
+- Macro indicator prompt grounding in `macro_indicators_agent` and aggregator default values.
+
+Pre-Change Observations:
+- In `TopIntelligenceBar.tsx`, the 'What Changed Since Yesterday' ticker beneath the Regime Probability Gauge displays `Gold Spot: $2,642/oz` and `Fed Funds: 3.88%` because `getDailyMaterialMoves()` returns a hardcoded static mock array and is invoked without the live dashboard data payload.
+- In `SafeHavenTechnicals.tsx`, default support and resistance fallbacks are hardcoded to `'$2,600'` and `'$2,700'` and source to `'LBMA / FRED'`.
+- In `HistoricalComparisonSidebar.tsx`, the Current Cycle Fed Funds value is hardcoded to `'3.88% (cuts begun)'` with sparkline point `3.88`.
+- In `RecessionPlaybookModal.tsx`, Stage 1 table lists Fed Funds at `3.88%`.
+- In `macro_indicators_agent`, prompt does not inject explicit verified values from ground truth as mandatory constraints.
+
+Baseline Checks Run:
+- `npm test -- --run`: Passed 16/16 tests across 5 files in 8.99s.
+- `venv\Scripts\python.exe -m pytest tests/`: Passed 7/7 tests across 2 files in 16.25s.
+- Branch Gate: Confirmed active branch is `develop`.
+
+Post-Implementation Checks & Verification:
+- `npm test -- --run`: Passed 17/17 tests across 5 files in 9.31s (added dynamic mover extraction and calibrated baseline tests).
+- `npm run build`: Passed, Vite production bundle generated in 1.80s.
+- `venv\Scripts\python.exe -m pytest tests/`: Passed 7/7 tests in 12.22s.
+- UI Indicator Validation:
+  - 'What Changed Since Yesterday' in TopIntelligenceBar: Gold Spot renders calibrated at $4,132/oz and Fed Funds at 3.75%, dynamically updating when backend payload arrives.
+  - SafeHavenTechnicals: Gold spot fallback is $4,132.30, with dynamic support ($4,090) and resistance ($4,170) and source 'Yahoo Finance (GC=F) / LBMA'.
+  - HistoricalComparisonSidebar: Fed Funds rate set to 3.75% (cuts begun) and sparkline endpoint 3.75.
+  - RecessionPlaybookModal: Effective Fed Funds updated to 3.75%.
+  - Calendar: Official central bank benchmarks (FED 3.75%, ECB 2.50%, BOE 3.73%, BOJ 0.30%) applied as fallbacks.
+  - MacroIndicators sub-agent: Prompt grounded with mandatory verified numbers, and aggregator defaults missing fields from ground truth.

@@ -32,17 +32,20 @@ export const SafeHavenTechnicals: React.FC<SafeHavenTechnicalsProps> = ({ risk, 
     goldData?.spot_price ??
     (typeof risk?.gold_technical === 'string'
       ? risk.gold_technical.match(/\$([\d,]+\.?\d*)/)?.[1]
-      : '2,658.40');
+      : '4,132.30');
+  const numericSpot = typeof goldSpot === 'number' ? goldSpot : parseFloat(String(goldSpot).replace(/[$,]/g, '')) || 4132.30;
+  const defaultSupport = `$${(Math.round((numericSpot - 45) / 10) * 10).toLocaleString()}`;
+  const defaultResistance = `$${(Math.round((numericSpot + 35) / 10) * 10).toLocaleString()}`;
   const goldTrend = goldData?.trend ?? 'Bullish Consolidation';
-  const goldSupport = goldData?.support ?? '$2,600';
-  const goldResistance = goldData?.resistance ?? '$2,700';
+  const goldSupport = (goldData?.support && !String(goldData.support).includes('2,6')) ? goldData.support : defaultSupport;
+  const goldResistance = (goldData?.resistance && !String(goldData.resistance).includes('2,7')) ? goldData.resistance : defaultResistance;
   const rawGoldDisplay = cleanDisplayText(risk?.gold_technical);
   const goldDrivers =
     goldData?.drivers ??
     (rawGoldDisplay && !rawGoldDisplay.toLowerCase().includes('unavailable')
       ? rawGoldDisplay
       : 'Gold is trading near all-time highs driven by central bank reserve accumulation, declining real yields, and safe-haven geopolitical hedging.');
-  const goldSource = goldData?.verified_source ?? 'LBMA / FRED';
+  const goldSource = goldData?.verified_source ?? 'Yahoo Finance (GC=F) / LBMA';
 
   // Safe haven flows
   const treasuryFlows = safeHavenData?.treasury_flows;

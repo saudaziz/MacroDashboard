@@ -237,6 +237,7 @@ function App() {
               spread10Y2Y={0.48}
               icr={avgMidCapIcr}
               vix={15.52}
+              data={data}
             />
 
             {/* Core Panels Row: Executive Summary (Left) + Core Key Gauges (Right) */}
