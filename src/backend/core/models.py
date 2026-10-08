@@ -235,7 +235,7 @@ class ExecutiveSummary(MacroBaseModel):
     )
     tripwires: List[str] = Field(
         default_factory=lambda: [
-            "1. Unemployment Rate (Sahm Rule): Rises above 4.3% (Current: 4.0%). Historical recession lag: 0–2 months.",
+            "1. Unemployment Rate (Sahm Rule): Rises above 4.3% (Current: 4.2%). Historical recession lag: 0–2 months.",
             "2. Mega-Cap Earnings Stumble: Hyperscaler AI capex returns disappoint or cloud growth slows. Market selloff lag: 1–3 months.",
             "3. Corporate Credit Distress: High-yield spreads widen above 500 bps or mid-cap ICR drops below 1.8x (Current: 2.15x). Recession lag: 2–4 months.",
             "4. Volatility Awakening: CBOE VIX surges above 20–25 from current 15.5. Pullback lag: Immediate (days to weeks).",

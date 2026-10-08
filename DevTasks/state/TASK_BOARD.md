@@ -257,3 +257,41 @@ Status: Closed
 ### QA Validation
 - Passed. Verified all 17 Vitest tests, 7 Pytest tests, and Vite production build. Under the Regime Probability Gauge, the "What Changed Since Yesterday" ticker now shows Gold Spot at $4,132/oz and Fed Funds at 3.75%. SafeHavenTechnicals, HistoricalComparisonSidebar, and Calendar all display grounded, live-aligned benchmarks.
 
+## T9 - Calibrate and Ground Official Unemployment Numbers (UNRATE 4.2%)
+
+Status: Closed
+
+### Acceptance Criteria
+- **T9.1 Calibrate Backend Ground Truth & Defaults**: Update `_get_mock_value` in `src/backend/core/fred_tool.py` to set `"UNRATE": 4.2`. Update `get_executive_summary` in `fred_tool.py` and default triggers in `src/backend/core/models.py` to state `(Current: 4.2%)`. In `src/backend/agents/agent.py`, update `macro_indicators_agent` prompt and `aggregator_node` default to `4.2%`.
+- **T9.2 Update Frontend Historical & Playbook Views**: In `HistoricalComparisonSidebar.tsx`, update `valNow` to `'4.2% (watch ≥ 4.3%)'`. In `RecessionPlaybookModal.tsx`, update `currentVal` to `'4.2%'`, and update both reference table and shock catalysts table cells from `4.0%` to `4.2%`. In `ExecutiveSummaryPanel.tsx`, update trigger 1 default to `(Current: 4.2%)`.
+- **T9.3 Dynamic Unemployment Wiring in App & Gauge**: In `App.tsx`, extract `unrate` from `parseFloat(data?.macro_indicators?.unemployment_rate?.value || '4.2')` and pass `unrate={unrate}` to `TopIntelligenceBar`. In `TopIntelligenceBar.tsx`, update default `unrate = 4.2`.
+- **T9.4 Automated Test Coverage & Verification**: Add/update unit tests to verify that `unrate` defaults to 4.2% and that all UI components render 4.2%. Run all Vitest and Pytest test suites and production build.
+
+### Evidence
+- Updated `src/backend/core/fred_tool.py`:
+  - `_get_mock_value`: `"UNRATE": 4.2` matching official September 2026 FRED release.
+  - `get_executive_summary`: Tripwire 1 updated to `(Current: 4.2%)`.
+- Updated `src/backend/core/models.py`:
+  - `ExecutiveSummary.tripwires`: updated Tripwire 1 to `(Current: 4.2%)`.
+- Updated `src/backend/agents/agent.py`:
+  - `macro_indicators_agent`: prompt constraint updated to `Unemployment Rate: 4.2%`.
+  - `aggregator_node`: `gt_map` fallback for `unemployment_rate` updated to `4.2%`.
+- Updated frontend components:
+  - `src/frontend/src/components/HistoricalComparisonSidebar.tsx`: `valNow` updated to `'4.2% (watch ≥ 4.3%)'`.
+  - `src/frontend/src/components/ExecutiveSummaryPanel.tsx`: Tripwire 1 default updated to `(Current: 4.2%)`.
+  - `src/frontend/src/components/RecessionPlaybookModal.tsx`: `currentVal` updated to `'4.2%'`, Reference Table cell updated to `4.2%`, and Shock Catalysts Matrix Table cell updated to `4.2%`.
+  - `src/frontend/src/components/TopIntelligenceBar.tsx`: default prop updated to `unrate = 4.2`.
+  - `src/frontend/src/App.tsx`: dynamically extracts `unrateValue` from `data?.macro_indicators?.unemployment_rate?.value` and passes `unrate={unrateValue}` to `TopIntelligenceBar`.
+- Test Suites:
+  - Added `test_unemployment_rate_is_calibrated_to_4_point_2` in `tests/test_market_data.py`.
+  - Pytest: 8/8 tests passing in 16.28s.
+  - Vitest: 17/17 tests passing in 33.38s.
+  - Vite production build: compiled in 9.61s.
+
+### Architect Verification
+- Passed. Verified official FRED latest unemployment rate (4.2%) is consistently integrated across backend ground-truth models, agent prompts, aggregator fallbacks, and all frontend views.
+
+### QA Validation
+- Passed. Verified in browser runtime: Historical Comparison Sidebar displays '4.2% (watch ≥ 4.3%)', Executive Summary displays '(Current: 4.2%)', Recession Playbook Modal displays 4.2% across catalysts and tables, and Top Intelligence Bar calculates regime probability using 4.2% unemployment.
+
+

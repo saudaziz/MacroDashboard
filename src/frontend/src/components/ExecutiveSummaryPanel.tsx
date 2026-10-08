@@ -24,7 +24,7 @@ const DEFAULT_SUMMARY: ExecutiveSummary = {
     '4. Avoid FOMO Chasing: Do not buy speculative stocks at all-time highs without strict risk rules.',
   ],
   tripwires: [
-    '1. Labor Market Deterioration (Sahm Rule): Unemployment rate rises above 4.3% (Current: 4.0%). Historical recession lag: 0–2 months.',
+    '1. Labor Market Deterioration (Sahm Rule): Unemployment rate rises above 4.3% (Current: 4.2%). Historical recession lag: 0–2 months.',
     '2. Mega-Cap Earnings Stumble: Hyperscaler AI capex returns disappoint or cloud growth slows. Market selloff lag: 1–3 months.',
     '3. Corporate Refinancing Stress: High-yield spreads widen > 500 bps or mid-cap ICR drops below 1.8x (Current: 2.15x). Recession lag: 2–4 months.',
     '4. Volatility Spike (The Awakening): CBOE VIX surges above 20–25 from current 15.5. Pullback lag: Immediate (days to weeks).',

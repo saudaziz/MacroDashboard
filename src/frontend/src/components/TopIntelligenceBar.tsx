@@ -23,7 +23,7 @@ export const TopIntelligenceBar: React.FC<TopIntelligenceBarProps> = ({
   spread10Y2Y = 0.48,
   icr = 2.15,
   vix = 15.52,
-  unrate = 4.0,
+  unrate = 4.2,
   data,
 }) => {
   const [showTooltip, setShowTooltip] = useState(false);

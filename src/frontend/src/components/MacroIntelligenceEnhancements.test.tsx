@@ -28,6 +28,7 @@ describe('MacroIntelligenceEnhancements', () => {
     expect(screen.getByText(/2008 \(GFC\)/i)).toBeInTheDocument();
     expect(screen.getByText(/2020 \(COVID\)/i)).toBeInTheDocument();
     expect(screen.getByText(/Now \(2025\/26\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/4.2% \(watch ≥ 4.3%\)/i)).toBeInTheDocument();
 
     // Toggle to sparklines
     const sparklinesBtn = screen.getByRole('button', { name: /Sparklines/i });

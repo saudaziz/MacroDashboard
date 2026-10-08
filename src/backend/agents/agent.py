@@ -606,7 +606,7 @@ async def macro_indicators_agent(state: AgentState, yield_callback=None) -> Dict
     pce_yoy = float(ground_truth.get("inflation_pce") or 3.01)
     yc_2y10y = float(ground_truth.get("yield_curve_2y_10y") or 0.48)
     yc_3m10y = float(ground_truth.get("yield_curve_3m_10y") or 1.06)
-    unrate = float(ground_truth.get("unemployment_rate") or 4.0)
+    unrate = float(ground_truth.get("unemployment_rate") or 4.2)
     m2 = float(ground_truth.get("m2_money_supply") or 23340.0)
 
     instruction = (
@@ -891,7 +891,7 @@ async def aggregator_node(
         "inflation_pce": ("Core PCE Inflation", f"{float(ground_truth.get('inflation_pce') or 3.01):.2f}", "%", "DOWN", "PCE Price Index (YoY)"),
         "yield_curve_2y_10y": ("10Y-2Y Spread", f"{float(ground_truth.get('yield_curve_2y_10y') or 0.48):+.2f}", "%", "UP", "Un-inversion actively steepening"),
         "yield_curve_3m_10y": ("10Y-3M Spread", f"{float(ground_truth.get('yield_curve_3m_10y') or 1.06):+.2f}", "%", "UP", "Yield curve normal regime"),
-        "unemployment_rate": ("Unemployment Rate", f"{float(ground_truth.get('unemployment_rate') or 4.0):.1f}", "%", "STABLE", "U-3 Civilian Unemployment"),
+        "unemployment_rate": ("Unemployment Rate", f"{float(ground_truth.get('unemployment_rate') or 4.2):.1f}", "%", "STABLE", "U-3 Civilian Unemployment"),
         "m2_money_supply": ("M2 Money Supply", f"{float(ground_truth.get('m2_money_supply') or 23340.0):,.0f}", "B", "UP", "Broad liquid money supply"),
     }
     for field, (name, val, unit, trend, note) in gt_map.items():

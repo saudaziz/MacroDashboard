@@ -10,12 +10,10 @@
 - Next step: Ready for user instructions or merge to main.
 
 ## Scope
-- T8.1: Update `getDailyMaterialMoves` in `src/frontend/src/utils/formatters.ts` to extract live Gold, Fed Funds, BTC, and spread from `DashboardData`, calibrating fallbacks to live figures ($4,132/oz, 3.75%, $83,200).
-- T8.2: Wire `data` from `App.tsx` into `TopIntelligenceBar` so "What Changed Since Yesterday" uses live backend data.
-- T8.3: Calibrate `SafeHavenTechnicals.tsx` support/resistance fallbacks relative to live spot price and update source label.
-- T8.4: Update `HistoricalComparisonSidebar.tsx` and `RecessionPlaybookModal.tsx` current Fed Funds to 3.75% and update sparkline.
-- T8.5: Ground `macro_indicators_agent` prompt in `agent.py` with mandatory official ground truth and anchor aggregator fallbacks.
-- T8.6: Update unit tests in frontend and backend test suites, verifying 100% pass rate.
+- T9.1: Calibrate backend `UNRATE` mock to 4.2% in `fred_tool.py`, update `models.py` and `fred_tool.py` executive triggers to `(Current: 4.2%)`, and ground `macro_indicators_agent` and aggregator defaults to 4.2%.
+- T9.2: Update `HistoricalComparisonSidebar.tsx`, `RecessionPlaybookModal.tsx`, and `ExecutiveSummaryPanel.tsx` to display official 4.2% unemployment rate.
+- T9.3: Forward dynamic `unrate` from `data?.macro_indicators?.unemployment_rate` in `App.tsx` into `TopIntelligenceBar`, updating its default to 4.2.
+- T9.4: Update unit tests and verify 100% pass across Vitest, Pytest, and Vite build.
 
 ## Outcome
 - T1 completed: Metric tooltips accessible and tested.
@@ -26,3 +24,4 @@
 - T6 completed: Regime Probability Gauge, 'What Changed Yesterday' strip, 3-Recession Sidebar, tightened stages, and Shock Catalysts 2D matrix merged and pushed on develop.
 - T7 completed: Live market data grounding adapter and accurate CPI YoY calculation implemented and tested.
 - T8 completed: Frontend and agent indicator grounding unified across all views and models (Gold $4,132/oz, Fed Funds 3.75%, CPI 3.35%, CB rates) verified with 17/17 Vitest and 7/7 Pytest tests passing.
+- T9 completed: Official unemployment rate (4.2%) unified across backend ground truth, models, prompts, aggregator defaults, and frontend views, verified with 17/17 Vitest and 8/8 Pytest tests passing.

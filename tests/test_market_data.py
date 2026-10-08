@@ -47,5 +47,12 @@ class MarketDataProviderTests(unittest.TestCase):
             self.assertAlmostEqual(yoy, 3.35, places=2)
 
 
+    def test_unemployment_rate_is_calibrated_to_4_point_2(self):
+        client = FREDClient()
+        unrate = client.get_series_latest("UNRATE")
+        self.assertIsNotNone(unrate)
+        self.assertEqual(unrate, 4.2)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -73,7 +73,7 @@ class FREDClient:
             "T10Y3M": 1.06,       # 10Y-3M Spread
             "CPIAUCSL": 3.35,     # CPI (August 2026 YoY official)
             "PCEPILFE": 3.01,     # Core PCE
-            "UNRATE": 4.0,        # Unemployment
+            "UNRATE": 4.2,        # Unemployment (September 2026 official)
             "M2SL": 23340.0,      # M2 Money Supply
             "FEDFUNDS": 3.75,     # Fed Funds Rate
             "ECBDFR": 2.50,       # ECB Deposit Facility Rate
@@ -167,7 +167,7 @@ class FREDClient:
                 "4. Avoid FOMO Chasing: Do not buy speculative stocks at all-time highs without strict risk rules.",
             ],
             "tripwires": [
-                "1. Labor Market Deterioration (Sahm Rule): Unemployment rate rises above 4.3% (Current: 4.0%). Historical recession lag: 0–2 months.",
+                "1. Labor Market Deterioration (Sahm Rule): Unemployment rate rises above 4.3% (Current: 4.2%). Historical recession lag: 0–2 months.",
                 "2. Mega-Cap Earnings Stumble: Hyperscaler AI capex returns disappoint or cloud growth slows. Market selloff lag: 1–3 months.",
                 "3. Corporate Refinancing Stress: High-yield spreads widen > 500 bps or mid-cap ICR drops below 1.8x (Current: 2.15x). Recession lag: 2–4 months.",
                 "4. Volatility Spike (The Awakening): CBOE VIX surges above 20–25 from current 15.5. Pullback lag: Immediate (days to weeks).",

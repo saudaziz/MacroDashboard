@@ -53,7 +53,7 @@ const CATALYSTS: CatalystNode[] = [
     severityY: 'Extreme',
     severityRowIndex: 0,
     whatFails: 'Hiring freezes morph into broad layoffs; consumer aggregate demand collapses',
-    currentVal: '4.0%',
+    currentVal: '4.2%',
     dangerThreshold: 'Sahm Rule fires (≥ 4.3%–4.5%)',
     lag: '0 to 2 months (Simultaneous)',
     color: '#f43f5e',
@@ -358,7 +358,7 @@ export const RecessionPlaybookModal: React.FC<RecessionPlaybookModalProps> = ({ 
                   <tr className="hover:bg-slate-800/20 bg-rose-500/5">
                     <td className="py-2 px-3 font-semibold text-slate-200">Unemployment Rate (Sahm Rule)</td>
                     <td className="py-2 px-3 text-slate-500">UNRATE</td>
-                    <td className="py-2 px-3 text-amber-400 font-bold">4.0%</td>
+                    <td className="py-2 px-3 text-amber-400 font-bold">4.2%</td>
                     <td className="py-2 px-3 text-slate-400">3.5% – 4.2%</td>
                     <td className="py-2 px-3 text-red-400 font-bold">≥ 4.3% – 4.5%</td>
                     <td className="py-2 px-3"><span className="rounded bg-rose-500/20 text-rose-300 px-2 py-0.5 text-[10px] font-bold">Tripwire Watch</span></td>
@@ -568,7 +568,7 @@ export const RecessionPlaybookModal: React.FC<RecessionPlaybookModalProps> = ({ 
                     <tr className="hover:bg-slate-800/20 bg-rose-500/5">
                       <td className="py-2 px-3 font-semibold text-slate-200">3. Labor Market Deterioration</td>
                       <td className="py-2 px-3 text-slate-400">Hiring freezes morph into broad layoffs</td>
-                      <td className="py-2 px-3 text-amber-400">4.0%</td>
+                      <td className="py-2 px-3 text-amber-400">4.2%</td>
                       <td className="py-2 px-3 text-rose-300 font-bold">Sahm Rule fires (≥ 4.3%–4.5%)</td>
                       <td className="py-2 px-3 text-rose-300 font-bold">0 to 2 months (simultaneous)</td>
                     </tr>

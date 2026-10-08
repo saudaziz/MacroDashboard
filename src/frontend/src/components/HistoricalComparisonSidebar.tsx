@@ -49,7 +49,7 @@ const HISTORICAL_OVERLAYS: IndicatorOverlay[] = [
     val2001: '4.2% → 5.7%',
     val2008: '4.6% → 10.0%',
     val2020: '3.5% → 14.7%',
-    valNow: '4.0% (watch ≥ 4.3%)',
+    valNow: '4.2% (watch ≥ 4.3%)',
     significance: 'Every recession began once unemployment climbed 0.5% above cyclical low.',
     status: 'watch',
   },

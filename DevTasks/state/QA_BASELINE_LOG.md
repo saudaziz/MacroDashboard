@@ -170,3 +170,32 @@ Post-Implementation Checks & Verification:
   - RecessionPlaybookModal: Effective Fed Funds updated to 3.75%.
   - Calendar: Official central bank benchmarks (FED 3.75%, ECB 2.50%, BOE 3.73%, BOJ 0.30%) applied as fallbacks.
   - MacroIndicators sub-agent: Prompt grounded with mandatory verified numbers, and aggregator defaults missing fields from ground truth.
+
+## T9 Feature Delivery Baseline - 2026-10-07
+
+Impacted scope:
+- Official FRED Unemployment Rate (`UNRATE` / Sahm Rule indicator) across backend ground truth, models, prompts, aggregator defaults, and frontend presentation views (`HistoricalComparisonSidebar`, `ExecutiveSummaryPanel`, `RecessionPlaybookModal`, `TopIntelligenceBar`).
+
+Pre-Change Observations:
+- FRED official benchmark `UNRATE` is currently **4.2%** (September 2026), but `4.0%` is hardcoded across multiple views and fallbacks:
+  - In `HistoricalComparisonSidebar.tsx`, the Current Cycle indicator displays `valNow: '4.0% (watch ≥ 4.3%)'`.
+  - In `RecessionPlaybookModal.tsx`, Stage 2 & Sahm Rule indicator is hardcoded to `'4.0%'` in `currentVal`, in the reference table (`4.0%`), and in the 2D Shock Catalysts matrix table (`4.0%`).
+  - In `ExecutiveSummaryPanel.tsx`, Trigger 1 states `Unemployment rate rises above 4.3% (Current: 4.0%)`.
+  - In `fred_tool.py`, `_get_mock_value` has `"UNRATE": 4.0` and `get_executive_summary` has `(Current: 4.0%)`.
+  - In `models.py`, `ExecutiveSummary` trigger default has `(Current: 4.0%)`.
+  - In `TopIntelligenceBar.tsx` and `App.tsx`, `unrate` default prop is `4.0`, and `App.tsx` does not dynamically forward the live unemployment rate from `data?.macro_indicators`.
+
+Baseline Checks Run:
+- `npm test -- --run`: Passed 17/17 tests across 5 files in 8.55s.
+- `venv\Scripts\python.exe -m pytest tests/`: Passed 7/7 tests across 2 files in 13.07s.
+- Branch Gate: Confirmed active branch is `develop`.
+
+Post-Implementation Checks & Verification:
+- `npm test -- --run`: Passed 17/17 tests across 5 files in 33.38s (verified HistoricalComparisonSidebar checks '4.2% (watch ≥ 4.3%)').
+- `npm run build`: Passed, Vite production bundle generated in 9.61s.
+- `venv\Scripts\python.exe -m pytest tests/`: Passed 8/8 tests in 16.28s (added `test_unemployment_rate_is_calibrated_to_4_point_2`).
+- UI Validation:
+  - HistoricalComparisonSidebar displays '4.2% (watch ≥ 4.3%)'.
+  - ExecutiveSummaryPanel tripwire displays '(Current: 4.2%)'.
+  - RecessionPlaybookModal displays 4.2% in transmission cards, reference table, and 2D shock catalyst matrix.
+  - TopIntelligenceBar receives live/calibrated 4.2% unemployment rate for regime probability calculation.

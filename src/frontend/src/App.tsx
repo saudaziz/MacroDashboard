@@ -63,6 +63,10 @@ function App() {
 
   const riskScore = toFiniteNumber(data?.risk?.score, 0);
   const avgMidCapIcr = toFiniteNumber(data?.credit?.mid_cap_avg_icr, 0);
+  const unrateValue = toFiniteNumber(
+    parseFloat(String(data?.macro_indicators?.unemployment_rate?.value || '').replace(/[^0-9.]/g, '')),
+    4.2
+  );
   const events = Array.isArray(data?.events) ? data.events : [];
   const suggestions = Array.isArray(data?.portfolio_suggestions) ? data.portfolio_suggestions : [];
   const mitigationSteps = Array.isArray(data?.risk_mitigation_steps) ? data.risk_mitigation_steps.map((step) => String(step)) : [];
@@ -237,6 +241,7 @@ function App() {
               spread10Y2Y={0.48}
               icr={avgMidCapIcr}
               vix={15.52}
+              unrate={unrateValue}
               data={data}
             />
 
