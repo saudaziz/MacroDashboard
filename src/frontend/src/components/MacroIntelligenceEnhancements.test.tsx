@@ -93,11 +93,23 @@ describe('MacroIntelligenceEnhancements', () => {
   it('renders RiskGauge with dynamic risk tag labels for low, moderate, and crisis scores', () => {
     const { rerender } = render(<RiskGauge data={{ score: 5.0, summary: 'Moderate stress' }} />);
     expect(screen.getByText(/MODERATE RISK/i)).toBeInTheDocument();
+    expect(screen.getByText(/YOU ARE HERE \(5\.0\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Calm \/ Stable/i)).toBeInTheDocument();
+    expect(screen.getByText(/Moderate \(Watch\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Crisis Tripwire/i)).toBeInTheDocument();
 
     rerender(<RiskGauge data={{ score: 8.5, summary: 'High systemic stress' }} />);
     expect(screen.getByText(/SYSTEMIC ALERT/i)).toBeInTheDocument();
+    expect(screen.getByText(/YOU ARE HERE \(8\.5\)/i)).toBeInTheDocument();
 
     rerender(<RiskGauge data={{ score: 2.1, summary: 'Benign liquidity' }} />);
     expect(screen.getByText(/LOW RISK/i)).toBeInTheDocument();
+    expect(screen.getByText(/YOU ARE HERE \(2\.1\)/i)).toBeInTheDocument();
+  });
+
+  it('supports legacy arc variant when specified', () => {
+    render(<RiskGauge data={{ score: 5.0, summary: 'Moderate' }} variant="arc" />);
+    expect(screen.getByText(/MODERATE RISK/i)).toBeInTheDocument();
+    expect(screen.getByText(/5/i)).toBeInTheDocument();
   });
 });

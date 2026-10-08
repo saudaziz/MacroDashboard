@@ -222,3 +222,22 @@ Baseline Checks Run:
 - `venv\Scripts\python.exe -m pytest tests/`: Passed 8/8 tests across 2 files.
 - Branch Gate: Confirmed active branch is `develop`.
 
+## T11 Feature Delivery Baseline - 2026-10-07
+
+Impacted scope:
+- Systemic Stress Risk Gauge visualization in `src/frontend/src/components/RiskGauge.tsx` and layout in `src/frontend/src/App.tsx`.
+- Credit metrics rearrangement (side-by-side underneath the top gauge).
+- Collapsible "Why we track this gauge" guidance drawer.
+
+Pre-Change Observations:
+- In `App.tsx`, the Core Key Gauges container uses a 2-column layout with Systemic Stress Risk Gauge on the left and stacked credit metrics on the right.
+- The 2nd column with stacked Avg Mid-Cap ICR, PIK Issuance, and CRE Delinquency takes up substantial vertical space.
+- The Systemic Stress Risk Gauge uses a radial semi-circle arc gauge rather than a linear multi-level bar scale with points and a "YOU ARE HERE" indicator.
+- The "Why we track this gauge" and interpretation explanation is always expanded, adding visual height to the container.
+
+Baseline Checks Run:
+- `npm test -- --run`: Passed 19/19 tests across 5 files in 6.41s.
+- `venv\Scripts\python.exe -m pytest tests/`: Passed 8/8 tests across 2 files in 11.77s.
+- Branch Gate: Confirmed active branch is `develop`.
+
+

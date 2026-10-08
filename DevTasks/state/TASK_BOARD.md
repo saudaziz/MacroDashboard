@@ -334,6 +334,56 @@ Status: Closed
   - Credit metrics column cleanly stacks Avg Mid-Cap ICR, PIK Issuance, and CRE Delinquency vertically.
   - All 19 Vitest tests, 8 Pytest tests, and Vite build pass with zero regressions.
 
+## T11 - Linear Systemic Stress Gauge with Scale Points & Side-by-Side Credit Metrics
+
+Status: Closed
+
+### Acceptance Criteria
+- **T11.1 Linear Scale & Points in Systemic Stress Risk Gauge**:
+  - Transform the display of `RiskGauge` to feature a horizontal linear multi-level bar scale with gradient-filled risk zones:
+    - 0.0 – 3.9: Calm / Stable (green gradient)
+    - 4.0 – 6.9: Moderate / Watch (amber/orange gradient)
+    - 7.0 – 10.0: High / Crisis (rose/red gradient)
+  - Display numerical scale points and ticks for 0, 4.0, 7.0, and 10.0.
+  - Render an indicator pointing to the exact current score on the scale (e.g. `{score.toFixed(1)} / 10 • YOU ARE HERE`).
+- **T11.2 Core Key Gauges Layout Rearrangement**:
+  - In `App.tsx`, arrange the Core Key Gauges panel such that the `Systemic Stress Risk Gauge` occupies the full top portion of the container.
+  - Position `Avg Mid-Cap ICR`, `PIK Issuance`, and `CRE Delinquency` directly below the gauge, placed side-by-side in a 3-column row (`grid-cols-1 sm:grid-cols-3`).
+- **T11.3 Collapsible "Why We Track This Gauge" Drawer**:
+  - Add a toggle button (`[Why we track this gauge ▼ / ▲]`) for the educational explanation and reading guide.
+  - Collapsed by default to keep the interface concise, expanding on user interaction.
+- **T11.4 Automated Test Suite Coverage**:
+  - Update unit tests in Vitest verifying linear scale bar, "YOU ARE HERE" indicator, and side-by-side credit metrics layout.
+  - Verify all Vitest, Pytest, and production build checks pass.
+
+### Evidence
+- Updated `src/frontend/src/components/RiskGauge.tsx`:
+  - Implemented linear multi-level bar scale with colored gradient tracks for the 3 distinct risk zones (Calm, Moderate, Crisis).
+  - Added threshold markers/points for 0.0, 4.0, 7.0, and 10.0 with zone labels.
+  - Added dynamic "YOU ARE HERE ({score})" indicator pin with arrow pointing to exact score percentage on the linear bar.
+- Updated `src/frontend/src/App.tsx`:
+  - Structured Core Key Gauges container so that Systemic Stress Risk Gauge occupies the entire top portion.
+  - Added collapsible toggle button `[Why we track this gauge ▼ / ▲]`, collapsed by default.
+  - Relocated `Avg Mid-Cap ICR`, `PIK Issuance`, and `CRE Delinquency` to the bottom portion in a responsive 3-column side-by-side layout (`grid-cols-1 sm:grid-cols-3`).
+- Updated `src/frontend/src/components/MacroIntelligenceEnhancements.test.tsx`:
+  - Added unit test asserting dynamic YOU ARE HERE indicator, scale markers, and legacy arc variant fallback.
+- Test Suites:
+  - Vitest: 20/20 tests passing across 5 test suites.
+  - Pytest: 8/8 tests passing.
+  - Vite production build: compiled cleanly (`dist/assets/index-BFg05UV8.js`).
+
+### Architect Verification
+- Passed. Verified linear scale bar accurately reflects score thresholds (0-3.9 Calm, 4.0-6.9 Moderate, 7.0-10.0 Crisis) with clear pointer indicator. Verified Core Key Gauges layout places the gauge across the full top width and arranges credit metrics side-by-side below. Verified "Why we track this gauge" drawer is collapsible.
+
+### QA Validation
+- Passed. Verified in browser runtime:
+  - Systemic Stress Risk Gauge renders horizontal linear bar with colored gradient zones and dynamic "YOU ARE HERE (5.0)" pin.
+  - "Why we track this gauge" is collapsed by default, expanding to reveal rationale and reading guide upon toggle click.
+  - Avg Mid-Cap ICR, PIK Issuance, and CRE Delinquency render side-by-side across 3 balanced columns underneath.
+  - All 20 Vitest tests and 8 Pytest tests pass cleanly.
+
+
+
 
 
 
