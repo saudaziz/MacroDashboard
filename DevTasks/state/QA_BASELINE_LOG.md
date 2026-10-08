@@ -199,3 +199,26 @@ Post-Implementation Checks & Verification:
   - ExecutiveSummaryPanel tripwire displays '(Current: 4.2%)'.
   - RecessionPlaybookModal displays 4.2% in transmission cards, reference table, and 2D shock catalyst matrix.
   - TopIntelligenceBar receives live/calibrated 4.2% unemployment rate for regime probability calculation.
+
+## T10 Feature Delivery Baseline - 2026-10-07
+
+Impacted scope:
+- Core Key Gauges section in `src/frontend/src/App.tsx`: Layout rearrangement of credit distress indicators (`Avg Mid-Cap ICR`, `PIK Issuance`, `CRE Delinquency`) and unification/enhancement of `Systemic Stress Risk Gauge` with plain-language interpretation and risk bands.
+
+Pre-Change Observations:
+- In `App.tsx`, the Core Key Gauges panel currently uses a 2x2 grid:
+  - Cell 1: `Risk Sentiment` (MetricBig showing `riskScore` /10).
+  - Cell 2: `Avg Mid-Cap ICR` (MetricBig).
+  - Cell 3: `PIK Issuance` (MetricBig).
+  - Cell 4: `CRE Delinquency` (MetricBig).
+  - Bottom row: `Systemic Stress Risk Gauge` displaying `<RiskGauge>` (also showing `riskScore` /10).
+- Redundancy & Confusion:
+  - The user questions whether the Systemic Stress Risk Gauge is really needed because `Risk Sentiment` and `Systemic Stress Risk Gauge` both display the same 5.0/10 score without explaining why both exist or what systemic stress actually means.
+  - `PIK Issuance` is currently in column 1 while `Avg Mid-Cap ICR` and `CRE Delinquency` are in column 2, disrupting the logical credit progression.
+  - The `Systemic Stress Risk Gauge` box has zero plain-language guidance explaining how to make sense of the reading (e.g. 5.0/10 Moderate/Alert, 1-3 Stable, 7-10 Crisis).
+
+Baseline Checks Run:
+- `npm test -- --run`: Passed 18/18 tests across 5 files.
+- `venv\Scripts\python.exe -m pytest tests/`: Passed 8/8 tests across 2 files.
+- Branch Gate: Confirmed active branch is `develop`.
+

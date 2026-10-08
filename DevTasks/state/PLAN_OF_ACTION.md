@@ -10,10 +10,9 @@
 - Next step: Ready for user instructions or merge to main.
 
 ## Scope
-- T9.1: Calibrate backend `UNRATE` mock to 4.2% in `fred_tool.py`, update `models.py` and `fred_tool.py` executive triggers to `(Current: 4.2%)`, and ground `macro_indicators_agent` and aggregator defaults to 4.2%.
-- T9.2: Update `HistoricalComparisonSidebar.tsx`, `RecessionPlaybookModal.tsx`, and `ExecutiveSummaryPanel.tsx` to display official 4.2% unemployment rate.
-- T9.3: Forward dynamic `unrate` from `data?.macro_indicators?.unemployment_rate` in `App.tsx` into `TopIntelligenceBar`, updating its default to 4.2.
-- T9.4: Update unit tests and verify 100% pass across Vitest, Pytest, and Vite build.
+- T10.1: Rearrange Core Key Gauges in `App.tsx` so that `PIK Issuance` is placed directly under `Avg Mid-Cap ICR`, and `CRE Delinquency` is placed directly under `PIK Issuance`.
+- T10.2: Clarify and unify `Systemic Stress Risk Gauge` to eliminate redundant score duplication with `Risk Sentiment`, and add rich plain-language guidance explaining what systemic stress means and how to interpret readings (1-3 Low, 4-6 Moderate, 7-10 High).
+- T10.3: Update unit tests in Vitest and run complete verification suite across Vitest, Pytest, and Vite production build.
 
 ## Outcome
 - T1 completed: Metric tooltips accessible and tested.
@@ -25,3 +24,4 @@
 - T7 completed: Live market data grounding adapter and accurate CPI YoY calculation implemented and tested.
 - T8 completed: Frontend and agent indicator grounding unified across all views and models (Gold $4,132/oz, Fed Funds 3.75%, CPI 3.35%, CB rates) verified with 17/17 Vitest and 7/7 Pytest tests passing.
 - T9 completed: Official unemployment rate (4.2%) unified across backend ground truth, models, prompts, aggregator defaults, and frontend views, verified with 17/17 Vitest and 8/8 Pytest tests passing.
+- T10 completed: Core Gauges layout rearranged with PIK Issuance under ICR and CRE Delinquency under PIK; Systemic Stress Risk Gauge unified and enriched with plain-language guidance, verified with 19/19 Vitest and 8/8 Pytest tests passing.

@@ -3,10 +3,11 @@ import type { RiskSentiment } from '../types';
 import { COLORS } from '../theme';
 import { Tag } from './UIAtoms';
 
-export const RiskGauge: React.FC<{ data: RiskSentiment }> = ({ data }) => {
+export const RiskGauge: React.FC<{ data: RiskSentiment; tagLabel?: string }> = ({ data, tagLabel }) => {
   const score = data.score;
   const pct = (score / 10) * 100;
   const color = score >= 8 ? COLORS.red : score >= 6 ? COLORS.orange : COLORS.amber;
+  const displayTag = tagLabel ?? (score >= 7 ? 'SYSTEMIC ALERT' : score >= 4 ? 'MODERATE RISK' : 'LOW RISK');
   
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }} role="img" aria-label={`Systemic risk score ${score} out of 10`}>
@@ -24,7 +25,7 @@ export const RiskGauge: React.FC<{ data: RiskSentiment }> = ({ data }) => {
             stroke={color} 
             strokeWidth="10" 
             fill="none" 
-            strokeLinecap="round"
+            strokeLinecap="round" 
             strokeDasharray={`${(pct / 100) * 172.8} 172.8`}
           />
         </svg>
@@ -33,7 +34,7 @@ export const RiskGauge: React.FC<{ data: RiskSentiment }> = ({ data }) => {
           <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: COLORS.muted }}>/10</span>
         </div>
       </div>
-      <Tag color={color}>SYSTEMIC ALERT</Tag>
+      <Tag color={color}>{displayTag}</Tag>
     </div>
   );
 };

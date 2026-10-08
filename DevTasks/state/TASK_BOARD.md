@@ -294,4 +294,46 @@ Status: Closed
 ### QA Validation
 - Passed. Verified in browser runtime: Historical Comparison Sidebar displays '4.2% (watch ≥ 4.3%)', Executive Summary displays '(Current: 4.2%)', Recession Playbook Modal displays 4.2% across catalysts and tables, and Top Intelligence Bar calculates regime probability using 4.2% unemployment.
 
+## T10 - Core Gauges Layout Rearrangement & Systemic Stress Gauge Guidance
+
+Status: Closed
+
+### Acceptance Criteria
+- **T10.1 Credit Vulnerability Stack Placement**: In `App.tsx`, arrange the credit vulnerability metrics such that `PIK Issuance` is placed directly under `Avg Mid-Cap ICR`, and `CRE Delinquency` is placed directly under `PIK Issuance`, establishing a cohesive vertical credit progression (`Avg Mid-Cap ICR` -> `PIK Issuance` -> `CRE Delinquency`).
+- **T10.2 Systemic Stress Risk Gauge Unification & Educational Context**:
+  - Eliminate the redundant duplicate score display between `Risk Sentiment` and `Systemic Stress Risk Gauge`.
+  - Enhance the `Systemic Stress Risk Gauge` box with comprehensive plain-language guidance:
+    - What it means: A synthesized financial conditions and credit market strain thermometer capturing liquidity, interbank funding spreads, leverage, and cross-asset volatility to detect sudden contagion before localized distress freezes credit.
+    - How to make sense of the reading: Clear risk bands (1.0–3.9 Low / Stable, 4.0–6.9 Moderate / Watch [Current], 7.0–10.0 High / Crisis).
+    - Current score context (5.0/10): Explain why the reading is moderate (tight policy rates and credit dispersion, but no systemic interbank freeze).
+- **T10.3 Automated Test Coverage & Verification**:
+  - Update/add component test in Vitest verifying the new layout and presence of Systemic Stress Risk Gauge plain-language guidance and risk bands.
+  - Run full verification across Vitest (18+ tests), Pytest (8 tests), and Vite production build.
+
+### Evidence
+- Updated `src/frontend/src/App.tsx`:
+  - Reorganized Core Key Gauges container into a responsive 2-column layout (`grid grid-cols-1 lg:grid-cols-2`).
+  - Stacked credit vulnerability metrics sequentially: `Avg Mid-Cap ICR` at top, `PIK Issuance` in middle, and `CRE Delinquency` at bottom.
+  - Removed duplicate `Risk Sentiment` box and consolidated systemic risk presentation inside `Systemic Stress Risk Gauge`.
+  - Added dedicated educational guide inside the Systemic Stress Risk Gauge box explaining why we track systemic stress (immediate liquidity/solvency thermometer) and how to make sense of readings with color-coded risk bands (`1.0–3.9`, `4.0–6.9`, `7.0–10.0`).
+- Updated `src/frontend/src/components/RiskGauge.tsx`:
+  - Dynamically displays risk status tag based on score: `MODERATE RISK` (4.0–6.9), `SYSTEMIC ALERT` (≥7.0), `LOW RISK` (<4.0).
+- Updated `src/frontend/src/components/MacroIntelligenceEnhancements.test.tsx`:
+  - Added unit test asserting dynamic risk tags across low, moderate, and crisis score levels.
+- Test Suites:
+  - Vitest: 19/19 tests passing across 5 test suites.
+  - Vite production build: compiled cleanly (`dist/assets/index-Dji_Q8TE.js`).
+  - Pytest: 8/8 tests passing.
+
+### Architect Verification
+- Passed. Verified layout placement conforms strictly to user request: `PIK Issuance` is directly under `Avg Mid-Cap ICR`, and `CRE Delinquency` is directly under `PIK Issuance`. Redundant score display has been unified, and plain-language guidance provides extreme clarity on why the gauge is needed and how to interpret the score.
+
+### QA Validation
+- Passed. Verified in browser runtime:
+  - Systemic Stress Risk Gauge displays dynamic `MODERATE RISK` tag (Amber) for 5.0/10 score, along with why-we-track rationale and color-coded risk interpretation bands.
+  - Credit metrics column cleanly stacks Avg Mid-Cap ICR, PIK Issuance, and CRE Delinquency vertically.
+  - All 19 Vitest tests, 8 Pytest tests, and Vite build pass with zero regressions.
+
+
+
 

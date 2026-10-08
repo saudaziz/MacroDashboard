@@ -1,5 +1,5 @@
-import { AlertTriangle, Loader2, RefreshCw, Settings, Check, X, Terminal } from 'lucide-react';
-import { useEffect } from 'react';
+import { AlertTriangle, Loader2, RefreshCw, Settings, Check, X, Terminal, Activity, Info } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { Calendar } from './components/Calendar';
 import { CreditPanel } from './components/CreditPanel';
 import { MacroIndicators } from './components/MacroIndicators';
@@ -55,6 +55,8 @@ function App() {
   } = useDashboardStore();
 
   console.log('[App] Render State:', { loading, hasData: !!data, hasError: !!error, status });
+
+  const [showSystemicTooltip, setShowSystemicTooltip] = useState(false);
 
   useEffect(() => {
     document.title = 'MacroDashboard by SaudAziz';
@@ -252,52 +254,122 @@ function App() {
                 riskScore={riskScore}
               />
 
-              <div className="flex flex-col gap-px overflow-hidden rounded-lg border border-slate-800 bg-slate-800">
-                <div className="grid grid-cols-2 gap-px bg-slate-800">
-                  <div className="bg-[#0d1420] p-4">
-                    <MetricBig
-                      label="Risk Sentiment"
-                      value={riskScore}
-                      unit="/10"
-                      color={riskScore >= 7 ? COLORS.red : COLORS.amber}
-                      sub={data?.risk?.summary ?? 'Awaiting data...'}
-                      helpText="Overall market risk level from 0-10. 1-3 indicates a stable market. 4-6 shows moderate risk. 7-10 points to high systemic stress."
-                    />
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-px overflow-hidden rounded-lg border border-slate-800 bg-slate-800">
+                {/* Left Side: Systemic Stress Risk Gauge with Context & Interpretation Guide */}
+                <div className="bg-[#0d1420] p-4 flex flex-col justify-between gap-3">
+                  <div>
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                      <div className="flex items-center gap-1.5">
+                        <Activity size={14} className="text-amber-400" />
+                        <span className="font-mono text-xs font-bold uppercase tracking-wider text-slate-200">
+                          Systemic Stress Risk Gauge
+                        </span>
+                      </div>
+                      <div className="relative inline-block">
+                        <button
+                          type="button"
+                          onClick={() => setShowSystemicTooltip(!showSystemicTooltip)}
+                          onMouseEnter={() => setShowSystemicTooltip(true)}
+                          onMouseLeave={() => setShowSystemicTooltip(false)}
+                          className="text-slate-500 hover:text-slate-300 transition-colors p-0.5 rounded cursor-pointer"
+                          aria-label="Explain Systemic Stress Risk Gauge"
+                        >
+                          <Info size={13} />
+                        </button>
+                        {showSystemicTooltip && (
+                          <div className="absolute right-0 top-6 z-50 w-72 rounded-lg border border-slate-700 bg-slate-900 p-2.5 text-[11px] text-slate-300 shadow-xl backdrop-blur-md">
+                            <p className="font-semibold text-amber-400 mb-1">Why Track Systemic Stress:</p>
+                            <p className="text-slate-300 leading-relaxed">
+                              Synthesizes cross-market liquidity, interbank funding spreads, corporate credit default spreads, and leverage to provide an immediate early-warning thermometer of systemic freeze.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Gauge Visual */}
+                    <div className="py-2 flex flex-col items-center justify-center">
+                      <RiskGauge data={data?.risk || { score: riskScore, summary: '' }} />
+                      <div className="text-center mt-1">
+                        <span className="font-mono text-xs text-slate-300 font-semibold">
+                          {data?.risk?.summary ?? 'Moderate systemic financial strain'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Educational Guide: What It Means & How to Read the Score */}
+                    <div className="mt-2 space-y-2 rounded-lg bg-slate-950/70 p-2.5 border border-slate-800/80 text-[11px]">
+                      <div>
+                        <p className="font-bold text-amber-400 text-[10px] uppercase font-mono tracking-wider">
+                          Why We Track This Gauge:
+                        </p>
+                        <p className="text-slate-300 leading-relaxed mt-0.5 text-[11px]">
+                          While the Regime Gauge predicts forward 6–12 mo cycle odds, this gauge acts as an immediate <strong>liquidity and solvency thermometer</strong> across credit spreads, corporate leverage, and interbank funding.
+                        </p>
+                      </div>
+
+                      <div className="pt-1.5 border-t border-slate-800">
+                        <p className="font-bold text-slate-300 text-[10px] uppercase font-mono tracking-wider mb-1">
+                          How to Make Sense of the Reading:
+                        </p>
+                        <div className="space-y-1 text-[10px] font-mono">
+                          <div className="flex items-center justify-between text-emerald-400/90">
+                            <span>• 1.0 – 3.9: Calm / Stable</span>
+                            <span className="text-slate-500 font-sans">Ample liquidity</span>
+                          </div>
+                          <div className="flex items-center justify-between text-amber-400 bg-amber-500/10 px-1 py-0.5 rounded border border-amber-500/20 font-bold">
+                            <span>• 4.0 – 6.9: Moderate / Watch (Current: {riskScore.toFixed(1)})</span>
+                            <span className="text-amber-300 font-sans">Restricted credit</span>
+                          </div>
+                          <div className="flex items-center justify-between text-rose-400/90">
+                            <span>• 7.0 – 10.0: High / Crisis</span>
+                            <span className="text-slate-500 font-sans">Liquidity freeze</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="bg-[#0d1420] p-4">
+
+                  <div className="text-[10px] text-slate-500 font-mono pt-1.5 border-t border-slate-800/60">
+                    Synthesizes ICR ({avgMidCapIcr.toFixed(2)}x), PIK debt, CRE risk & credit OAS.
+                  </div>
+                </div>
+
+                {/* Right Side: Credit Vulnerability Stack (Avg Mid-Cap ICR -> PIK Issuance -> CRE Delinquency) */}
+                <div className="flex flex-col gap-px bg-slate-800">
+                  {/* 1. Avg Mid-Cap ICR */}
+                  <div className="bg-[#0d1420] p-4 flex-1">
                     <MetricBig
                       label="Avg Mid-Cap ICR"
                       value={avgMidCapIcr.toFixed(2)}
                       unit="x"
                       color={avgMidCapIcr < 1.5 ? COLORS.red : COLORS.green}
                       sub={`Alert: ${data?.credit?.alert ? 'YES' : 'NO'}`}
-                      helpText="Interest Coverage Ratio (ICR) measures how easily companies can pay debt interest. Above 2.0x is healthy; below 1.5x suggests high default risk."
+                      helpText="Interest Coverage Ratio (ICR) measures how easily companies can pay debt interest from operating earnings. Above 2.0x is healthy; below 1.5x signals high default risk."
                     />
                   </div>
-                  <div className="bg-[#0d1420] p-4">
+
+                  {/* 2. PIK Issuance (placed directly under ICR) */}
+                  <div className="bg-[#0d1420] p-4 flex-1">
                     <MetricBig
                       label="PIK Issuance"
                       value={data?.credit?.pik_debt_issuance ?? 'N/A'}
                       color={COLORS.orange}
                       sub="Deferred interest volume"
-                      helpText="Payment-In-Kind (PIK) debt activity. Companies pay interest with more debt instead of cash."
+                      helpText="Payment-In-Kind (PIK) debt activity. Companies pay interest with more debt instead of cash. Rising PIK indicates cash flow strain."
                     />
                   </div>
-                  <div className="bg-[#0d1420] p-4">
+
+                  {/* 3. CRE Delinquency (placed directly under PIK) */}
+                  <div className="bg-[#0d1420] p-4 flex-1">
                     <MetricBig
                       label="CRE Delinquency"
                       value={data?.credit?.cre_delinquency_rate ?? 'N/A'}
                       color={COLORS.red}
                       sub="Commercial Real Estate stress"
-                      helpText="Commercial Real Estate (CRE) delinquency trend. Rising rates signal broader credit weakness."
+                      helpText="Commercial Real Estate (CRE) delinquency trend. Rising default rates signal broader property and regional banking credit weakness."
                     />
                   </div>
-                </div>
-                <div className="flex items-center justify-between bg-[#0d1420] p-4">
-                  <div className="font-mono text-[10px] uppercase tracking-[0.1em] text-slate-500">
-                    Systemic Stress Risk Gauge
-                  </div>
-                  <RiskGauge data={data?.risk || { score: 0, summary: '' }} />
                 </div>
               </div>
             </div>

@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { TopIntelligenceBar } from './TopIntelligenceBar';
 import { HistoricalComparisonSidebar } from './HistoricalComparisonSidebar';
 import { RecessionPlaybookModal } from './RecessionPlaybookModal';
+import { RiskGauge } from './RiskGauge';
 
 describe('MacroIntelligenceEnhancements', () => {
   it('renders TopIntelligenceBar with regime probability numbers and daily movers', () => {
@@ -87,5 +88,16 @@ describe('MacroIntelligenceEnhancements', () => {
     const tableBtn = screen.getByRole('button', { name: /Reference Table/i });
     fireEvent.click(tableBtn);
     expect(screen.getByText(/Historical Lag to Recession/i)).toBeInTheDocument();
+  });
+
+  it('renders RiskGauge with dynamic risk tag labels for low, moderate, and crisis scores', () => {
+    const { rerender } = render(<RiskGauge data={{ score: 5.0, summary: 'Moderate stress' }} />);
+    expect(screen.getByText(/MODERATE RISK/i)).toBeInTheDocument();
+
+    rerender(<RiskGauge data={{ score: 8.5, summary: 'High systemic stress' }} />);
+    expect(screen.getByText(/SYSTEMIC ALERT/i)).toBeInTheDocument();
+
+    rerender(<RiskGauge data={{ score: 2.1, summary: 'Benign liquidity' }} />);
+    expect(screen.getByText(/LOW RISK/i)).toBeInTheDocument();
   });
 });
