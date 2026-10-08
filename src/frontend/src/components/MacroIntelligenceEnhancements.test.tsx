@@ -18,6 +18,34 @@ describe('MacroIntelligenceEnhancements', () => {
     expect(screen.getByText(/-5 bps/i)).toBeInTheDocument();
     expect(screen.getByText(/Gold Spot/i)).toBeInTheDocument();
     expect(screen.getByText(/\(\$4,132\/oz\)/i)).toBeInTheDocument();
+
+    // Inline micro-definitions
+    expect(screen.getByText(/GDP contraction & layoffs/i)).toBeInTheDocument();
+    expect(screen.getByText(/Inflation cools without crash \(Baseline\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Reaccelerating growth & capex/i)).toBeInTheDocument();
+  });
+
+  it('toggles the Regime Probability explanation guide drawer in TopIntelligenceBar', () => {
+    render(<TopIntelligenceBar riskScore={5.0} spread10Y2Y={0.48} icr={2.15} vix={15.52} />);
+
+    // Guide drawer closed initially
+    expect(screen.queryByText(/Understanding Macro Regime Probabilities/i)).not.toBeInTheDocument();
+
+    // Click toggle button
+    const toggleBtn = screen.getByRole('button', { name: /Toggle Regime Odds Interpretation Guide/i });
+    fireEvent.click(toggleBtn);
+
+    // Guide drawer is now open
+    expect(screen.getByText(/Understanding Macro Regime Probabilities/i)).toBeInTheDocument();
+    expect(screen.getByText(/Elevated Risk/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Modal Baseline/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/Decision Rule/i)).toBeInTheDocument();
+    expect(screen.getByText(/Sum: 100% \(100% distribution\)/i)).toBeInTheDocument();
+
+    // Close using close button
+    const closeBtn = screen.getByRole('button', { name: /Close guide/i });
+    fireEvent.click(closeBtn);
+    expect(screen.queryByText(/Understanding Macro Regime Probabilities/i)).not.toBeInTheDocument();
   });
 
   it('renders HistoricalComparisonSidebar and toggles between Overlay and Sparklines', () => {
