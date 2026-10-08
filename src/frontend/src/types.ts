@@ -169,6 +169,8 @@ export interface MacroCorrelations {
   vix_regime: string;
   breadth_signal: string;
   credit_headwinds: string;
+  spread_10y_2y?: number;
+  vix?: number;
 }
 
 export interface MacroDashboardResponse {

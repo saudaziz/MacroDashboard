@@ -69,6 +69,14 @@ function App() {
     parseFloat(String(data?.macro_indicators?.unemployment_rate?.value || '').replace(/[^0-9.]/g, '')),
     4.2
   );
+  const spread10Y2YValue = toFiniteNumber(
+    parseFloat(String(data?.macro_indicators?.yield_curve_2y_10y?.value || data?.correlations?.spread_10y_2y || '').replace(/[^\d.-]/g, '')),
+    0.48
+  );
+  const vixValue = toFiniteNumber(
+    parseFloat(String(data?.correlations?.vix || (Array.isArray(data?.correlations?.historical_points) && data.correlations.historical_points.slice(-1)[0]?.vix) || '').replace(/[^0-9.]/g, '')),
+    15.52
+  );
   const events = Array.isArray(data?.events) ? data.events : [];
   const suggestions = Array.isArray(data?.portfolio_suggestions) ? data.portfolio_suggestions : [];
   const mitigationSteps = Array.isArray(data?.risk_mitigation_steps) ? data.risk_mitigation_steps.map((step) => String(step)) : [];
@@ -240,9 +248,9 @@ function App() {
             {/* Top Row: Regime Probability Gauge & 'What Changed Yesterday?' Strip */}
             <TopIntelligenceBar
               riskScore={riskScore}
-              spread10Y2Y={0.48}
+              spread10Y2Y={spread10Y2YValue}
               icr={avgMidCapIcr}
-              vix={15.52}
+              vix={vixValue}
               unrate={unrateValue}
               data={data}
             />

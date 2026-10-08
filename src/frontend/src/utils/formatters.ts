@@ -174,7 +174,15 @@ export function getDailyMaterialMoves(data?: any): MaterialMove[] {
   }
 
   // 4. VIX Volatility
-  const vixVal = '15.52';
+  let vixVal = '15.52';
+  if (data?.correlations?.vix) {
+    vixVal = String(data.correlations.vix);
+  } else if (Array.isArray(data?.correlations?.historical_points) && data.correlations.historical_points.length > 0) {
+    const lastPoint = data.correlations.historical_points[data.correlations.historical_points.length - 1];
+    if (lastPoint?.vix !== undefined) {
+      vixVal = String(lastPoint.vix);
+    }
+  }
 
   // 5. High-Yield OAS Spread
   let hyOasVal = '325 bps';
