@@ -6,9 +6,13 @@ import os
 try:
     from src.backend.api.logging_config import configure_logging
     from src.backend.core.env_loader import get_env_variable
+    from src.backend.core.refresh_guard import RefreshDenied, RefreshGuard, secrets_from_env
+    from src.backend.core.runtime_paths import LOG_ROOT
 except ImportError:
     from api.logging_config import configure_logging
     from core.env_loader import get_env_variable
+    from core.refresh_guard import RefreshDenied, RefreshGuard, secrets_from_env
+    from core.runtime_paths import LOG_ROOT
 
 configure_logging()
 logger = logging.getLogger("Main")
@@ -35,6 +39,7 @@ try:
         _load_latest_dashboard,
     )
     from src.backend.core.models import MacroDashboardResponse
+    from src.backend.core.playbook_data import get_recession_playbook_snapshot
     from src.backend.api.providers import (
         list_supported_providers,
         normalize_provider_name,
@@ -47,6 +52,7 @@ except ImportError:
         _load_latest_dashboard,
     )
     from core.models import MacroDashboardResponse
+    from core.playbook_data import get_recession_playbook_snapshot
     from api.providers import (
         list_supported_providers,
         normalize_provider_name,
@@ -67,7 +73,7 @@ allowed_origins = _parse_csv_env(
     get_env_variable("CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
 )
 allowed_methods = _parse_csv_env(get_env_variable("CORS_ALLOWED_METHODS", "GET,POST,OPTIONS"))
-allowed_headers = _parse_csv_env(get_env_variable("CORS_ALLOWED_HEADERS", "Content-Type,Authorization,X-API-Key"))
+allowed_headers = _parse_csv_env(get_env_variable("CORS_ALLOWED_HEADERS", "Content-Type,Authorization,X-API-Key,X-Refresh-Code"))
 allow_credentials = _parse_bool_env(get_env_variable("CORS_ALLOW_CREDENTIALS", "false"))
 
 # Enable CORS with explicit allowlist for frontend interaction
@@ -96,6 +102,25 @@ def require_api_key(request: Request, api_key: str | None = Depends(auth_header)
     if not api_key or api_key != expected_api_key:
         raise HTTPException(status_code=401, detail="Invalid or missing API key.")
     return True
+
+# State lives under LOG_ROOT (outside the repo) so quota history is never committed or shipped.
+refresh_guard = RefreshGuard(
+    LOG_ROOT / "refresh_guard.json",
+    lambda: secrets_from_env(get_env_variable),
+)
+
+
+def enforce_refresh_code(request: Request, provider: str) -> None:
+    """Block token-spending runs unless a valid refresh code is supplied. Demo spends no tokens."""
+    if normalize_provider_name(provider) == "Demo":
+        return
+    client_id = request.client.host if request.client else "unknown"
+    try:
+        refresh_guard.authorize(request.headers.get("X-Refresh-Code"), client_id)
+    except RefreshDenied as denied:
+        logger.warning("Refresh denied (%s) for client.", denied.code)
+        raise HTTPException(status_code=denied.status_code, detail=denied.to_detail())
+
 
 class DashboardRequest(BaseModel):
     provider: str = get_default_provider_name()
@@ -147,6 +172,17 @@ def get_status():
         },
     }
 
+@app.get("/api/refresh-quota")
+def refresh_quota():
+    """Quota usage only; reveals nothing about codes and spends no tokens."""
+    master, access = secrets_from_env(get_env_variable)
+    missing = []
+    if not master and not access:
+        missing.append("REFRESH_MASTER_CODE or REFRESH_ACCESS_CODES")
+    if not get_env_variable("OPENROUTER_API_KEY", "").strip():
+        missing.append("OPENROUTER_API_KEY")
+    return {**refresh_guard.quota_status(), "missing": missing}
+
 @app.get("/api/providers")
 def get_providers():
     return list_supported_providers()
@@ -175,6 +211,10 @@ async def cancel_dashboard(cancel_request: CancelRequest, _: bool = Depends(requ
 async def create_dashboard(request: Request, dashboard_request: DashboardRequest, _: bool = Depends(require_api_key)):
     logger.info(f"POST /api/generate-dashboard received. Provider: {dashboard_request.provider}, Skip Cache: {dashboard_request.skip_cache}")
     try:
+        enforce_refresh_code(request, dashboard_request.provider)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    try:
         provider_name = normalize_provider_name(dashboard_request.provider)
         # Enforce cache usage for Demo mode
         skip_cache = dashboard_request.skip_cache
@@ -191,6 +231,12 @@ async def create_dashboard(request: Request, dashboard_request: DashboardRequest
         logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/recession-playbook")
+def recession_playbook():
+    """Live FRED readings for the Recession Playbook popup. Unavailable values are null, never mock numbers."""
+    return get_recession_playbook_snapshot()
+
+
 @app.get("/api/latest-dashboard")
 def latest_dashboard():
     logger.info("GET /api/latest-dashboard received.")
@@ -204,6 +250,11 @@ def latest_dashboard():
 @limiter.limit("5/minute")
 async def stream_dashboard(dashboard_request: DashboardRequest, request: Request, _: bool = Depends(require_api_key)):
     logger.info(f"POST /api/stream-dashboard received. Provider: {dashboard_request.provider}, Skip Cache: {dashboard_request.skip_cache}")
+    try:
+        enforce_refresh_code(request, dashboard_request.provider)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
     async def event_generator():
         current_task = asyncio.current_task()
         async with current_stream_lock:

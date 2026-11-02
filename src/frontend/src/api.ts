@@ -13,6 +13,44 @@ interface StreamRequest {
   session_id: string;
 }
 
+export class RefreshGateError extends Error {
+  status: number;
+  code: string;
+  retryAt: number | null;
+  constructor(status: number, code: string, message: string, retryAt: number | null) {
+    super(message);
+    this.name = 'RefreshGateError';
+    this.status = status;
+    this.code = code;
+    this.retryAt = retryAt;
+  }
+}
+
+export interface RefreshQuota {
+  limit: number;
+  used: number;
+  resets_at: number | null;
+  missing?: string[];
+}
+
+async function toGateError(response: Response): Promise<RefreshGateError | null> {
+  if (response.status !== 403 && response.status !== 429 && response.status !== 503) return null;
+  try {
+    const body = (await response.clone().json()) as { detail?: { code?: string; message?: string; retry_at?: number | null } };
+    const detail = body.detail;
+    if (detail && typeof detail === 'object' && typeof detail.code === 'string') {
+      return new RefreshGateError(response.status, detail.code, detail.message ?? 'Refresh denied.', detail.retry_at ?? null);
+    }
+  } catch {
+    // Not a gate response (e.g. rate limiter); fall through to the generic error.
+  }
+  return null;
+}
+
+export async function getRefreshQuota(): Promise<RefreshQuota> {
+  return fetchJson<RefreshQuota>('/api/refresh-quota');
+}
+
 function withAuthHeaders(headers: HeadersInit = {}): HeadersInit {
   const authHeaders: Record<string, string> = {};
   const runtimeApiKey =
@@ -70,15 +108,21 @@ export async function resumeWorkflow(runId: string, sessionId: string, decision:
 export async function* streamDashboard(
   payload: StreamRequest,
   signal: AbortSignal,
+  refreshCode?: string,
 ): AsyncGenerator<StreamStatusPayload, void, undefined> {
   const response = await fetch(`${API_BASE_URL}/api/stream-dashboard`, {
     method: 'POST',
-    headers: withAuthHeaders({ 'Content-Type': 'application/json' }),
+    headers: {
+      ...withAuthHeaders({ 'Content-Type': 'application/json' }),
+      ...(refreshCode ? { 'X-Refresh-Code': refreshCode } : {}),
+    },
     body: JSON.stringify(payload),
     signal,
   });
 
   if (!response.ok) {
+    const gateError = await toGateError(response);
+    if (gateError) throw gateError;
     const text = await response.text().catch(() => '');
     throw new Error(text || 'Failed to connect to agent stream.');
   }

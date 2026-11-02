@@ -6,6 +6,8 @@ import { HistoricalComparisonSidebar } from './HistoricalComparisonSidebar';
 import { RecessionPlaybookModal } from './RecessionPlaybookModal';
 import { RiskGauge } from './RiskGauge';
 
+vi.mock('../playbookApi', () => ({ fetchRecessionPlaybook: vi.fn(() => new Promise(() => {})) }));
+
 describe('MacroIntelligenceEnhancements', () => {
   it('renders TopIntelligenceBar with regime probability numbers and daily movers', () => {
     render(<TopIntelligenceBar riskScore={5.0} spread10Y2Y={0.48} icr={2.15} vix={15.52} />);
@@ -68,16 +70,16 @@ describe('MacroIntelligenceEnhancements', () => {
 
   it('renders RecessionPlaybookModal with tightened stages, We Are Here indicator, and Timeline matrix', () => {
     const handleClose = vi.fn();
-    render(<RecessionPlaybookModal isOpen={true} onClose={handleClose} />);
+    render(<RecessionPlaybookModal isOpen={true} onClose={handleClose} live={{ icr: 2.15 }} />);
 
-    // Stage 1 active indicator
-    expect(screen.getByText(/WE ARE HERE/i)).toBeInTheDocument();
-    expect(screen.getByText(/Yield Un-Inversion/i)).toBeInTheDocument();
+    // Stage 1 active indicator (shows once live data resolves; the mock never resolves here)
+    expect(screen.getByText(/Restrictive Policy/i)).toBeInTheDocument();
 
-    // Tightened Stage 3 (matches both transmission card and catalyst matrix)
+    // Stage 3 (matches both transmission card and catalyst matrix) is coincident, not a 3-month lead
     const sahmElements = screen.getAllByText(/Sahm Rule Fires ⚠️/i);
     expect(sahmElements.length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText(/~3 Mos to Layoffs/i)).toBeInTheDocument();
+    expect(screen.getByText(/Lag: Coincident \(0–2 Mos\)/i)).toBeInTheDocument();
+    expect(screen.queryByText(/~3 Mos to Layoffs/i)).not.toBeInTheDocument();
 
     // Timeline view default
     const timelineElements = screen.getAllByText(/Timeline Matrix/i);

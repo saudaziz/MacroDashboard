@@ -2,11 +2,14 @@ import React from 'react';
 import { AlertCircle, BookOpen, CheckCircle2, CloudRain, Lightbulb, ShieldAlert, Sparkles, TrendingUp } from 'lucide-react';
 import { Card, SectionTitle } from './UIAtoms';
 import type { ExecutiveSummary } from '../types';
-import { RecessionPlaybookModal } from './RecessionPlaybookModal';
+import { RecessionPlaybookModal, type LiveReadings } from './RecessionPlaybookModal';
+import type { RegimeProbabilities } from '../utils/formatters';
 
 interface ExecutiveSummaryPanelProps {
   data?: ExecutiveSummary | undefined;
   riskScore?: number | undefined;
+  liveReadings?: LiveReadings | undefined;
+  regime?: RegimeProbabilities | undefined;
 }
 
 const DEFAULT_SUMMARY: ExecutiveSummary = {
@@ -31,7 +34,7 @@ const DEFAULT_SUMMARY: ExecutiveSummary = {
   ],
 };
 
-export const ExecutiveSummaryPanel: React.FC<ExecutiveSummaryPanelProps> = ({ data = DEFAULT_SUMMARY, riskScore = 5 }) => {
+export const ExecutiveSummaryPanel: React.FC<ExecutiveSummaryPanelProps> = ({ data = DEFAULT_SUMMARY, riskScore = 5, liveReadings, regime }) => {
   const [activeTab, setActiveTab] = React.useState<'actions' | 'tripwires'>('actions');
   const [isPlaybookOpen, setIsPlaybookOpen] = React.useState<boolean>(false);
   const summary = data || DEFAULT_SUMMARY;
@@ -173,7 +176,7 @@ export const ExecutiveSummaryPanel: React.FC<ExecutiveSummaryPanelProps> = ({ da
         </button>
       </div>
 
-      <RecessionPlaybookModal isOpen={isPlaybookOpen} onClose={() => setIsPlaybookOpen(false)} />
+      <RecessionPlaybookModal isOpen={isPlaybookOpen} onClose={() => setIsPlaybookOpen(false)} live={liveReadings} regime={regime} />
     </Card>
   );
 };

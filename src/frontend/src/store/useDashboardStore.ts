@@ -7,6 +7,7 @@ import {
   streamDashboard,
   validateDashboardData,
   resumeWorkflow,
+  RefreshGateError,
 } from '../api';
 import type { MacroDashboardResponse, TokenStats, Interrupt } from '../types';
 
@@ -38,12 +39,16 @@ export interface DashboardState {
   interrupt: Interrupt | null;
   abortController: AbortController | null;
   activeRunId: string | null;
+  codePromptOpen: boolean;
+  gateError: { code: string; message: string; retryAt: number | null } | null;
 }
 
 export interface DashboardActions {
   setProvider: (provider: string) => void;
   setSkipCache: (skipCache: boolean) => void;
-  fetchDashboard: () => Promise<void>;
+  fetchDashboard: (refreshCode?: string) => Promise<void>;
+  openCodePrompt: () => void;
+  closeCodePrompt: () => void;
   cancelDashboardRequest: () => Promise<void>;
   handleInterrupt: (decision: 'approved' | 'rejected') => Promise<void>;
   bootstrap: () => Promise<void>;
@@ -81,7 +86,11 @@ export const useDashboardStore = create<DashboardState & DashboardActions>((set,
   interrupt: null,
   abortController: null,
   activeRunId: null,
+  codePromptOpen: false,
+  gateError: null,
 
+  openCodePrompt: () => set({ codePromptOpen: true, gateError: null }),
+  closeCodePrompt: () => set({ codePromptOpen: false, gateError: null }),
   setProvider: (provider) => set({ provider }),
   setSkipCache: (skipCache) => set({ skipCache }),
 
@@ -170,14 +179,25 @@ export const useDashboardStore = create<DashboardState & DashboardActions>((set,
     await resumeWorkflow(activeRunId, sessionId, decision);
   },
 
-  fetchDashboard: async () => {
+  fetchDashboard: async (refreshCode) => {
     const { provider, skipCache, addProgress, addTrace } = get();
+    const previous = {
+      data: get().data,
+      rawResponse: get().rawResponse,
+      reasoning: get().reasoning,
+      llmRequestContent: get().llmRequestContent,
+      devStats: get().devStats,
+      progressLog: get().progressLog,
+      agentTrace: get().agentTrace,
+      status: get().status,
+    };
 
     const runId = crypto.randomUUID();
     const sessionId = getSessionId();
     set({
       loading: true,
       error: null,
+      gateError: null,
       data: null,
       rawResponse: null,
       reasoning: null,
@@ -200,7 +220,8 @@ export const useDashboardStore = create<DashboardState & DashboardActions>((set,
 
     try {
       console.log('[Store] Starting streamDashboard generator...');
-      for await (const payload of streamDashboard({ provider, skip_cache: skipCache, run_id: runId, session_id: sessionId }, controller.signal)) {
+      for await (const payload of streamDashboard({ provider, skip_cache: skipCache, run_id: runId, session_id: sessionId }, controller.signal, refreshCode)) {
+        if (get().codePromptOpen) set({ codePromptOpen: false });
         console.log(`[Store] Received Event: ${payload.status}`, payload);
 
         if (payload.message) {
@@ -293,7 +314,10 @@ export const useDashboardStore = create<DashboardState & DashboardActions>((set,
       console.log('[Store] Stream loop finished normally.');
     } catch (err) {
       const error = err as Error;
-      if (error.name === 'AbortError') {
+      if (err instanceof RefreshGateError) {
+        // Rejected before any tokens were spent: keep the dashboard the user already had.
+        set({ ...previous, gateError: { code: err.code, message: err.message, retryAt: err.retryAt }, codePromptOpen: true });
+      } else if (error.name === 'AbortError') {
         set({
           status: 'Request canceled by user.',
           error: null,

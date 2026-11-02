@@ -4,8 +4,10 @@ import { Calendar } from './components/Calendar';
 import { CreditPanel } from './components/CreditPanel';
 import { MacroIndicators } from './components/MacroIndicators';
 import { ExecutiveSummaryPanel } from './components/ExecutiveSummaryPanel';
+import { calculateRegimeProbabilities } from './utils/formatters';
 import { MacroCorrelationsPanel } from './components/MacroCorrelationsPanel';
 import { HistoricalComparisonSidebar } from './components/HistoricalComparisonSidebar';
+import { RefreshCodeModal } from './components/RefreshCodeModal';
 import { TopIntelligenceBar } from './components/TopIntelligenceBar';
 import { EventsFeed } from './components/EventsFeed';
 import { PortfolioAdvice } from './components/PortfolioAdvice';
@@ -52,6 +54,10 @@ function App() {
     cancelDashboardRequest,
     handleInterrupt,
     bootstrap,
+    codePromptOpen,
+    gateError,
+    openCodePrompt,
+    closeCodePrompt,
   } = useDashboardStore();
 
   console.log('[App] Render State:', { loading, hasData: !!data, hasError: !!error, status });
@@ -96,14 +102,14 @@ function App() {
             <p className="mb-6 text-sm leading-relaxed text-slate-300">{interrupt.message}</p>
             <div className="flex gap-4">
               <button
-                onClick={() => handleInterrupt('approved')}
+                onClick={() => void handleInterrupt('approved')}
                 className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-emerald-500"
               >
                 <Check size={18} />
                 APPROVE
               </button>
               <button
-                onClick={() => handleInterrupt('rejected')}
+                onClick={() => void handleInterrupt('rejected')}
                 className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-red-500"
               >
                 <X size={18} />
@@ -113,6 +119,14 @@ function App() {
           </Card>
         </div>
       )}
+
+      <RefreshCodeModal
+        isOpen={codePromptOpen}
+        submitting={loading}
+        error={gateError}
+        onSubmit={(code) => void fetchDashboard(code)}
+        onClose={closeCodePrompt}
+      />
 
       <header className="sticky top-0 z-50 border-b border-slate-800 bg-[#0d1420] px-4 py-3 md:px-8">
         <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -175,7 +189,13 @@ function App() {
 
             <button
               onClick={() => {
-                void (loading ? cancelDashboardRequest() : fetchDashboard());
+                if (loading) {
+                  void cancelDashboardRequest();
+                } else if (provider === 'Demo') {
+                  void fetchDashboard(); // Demo replays cached data and spends no tokens
+                } else {
+                  openCodePrompt();
+                }
               }}
               className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-bold text-black ${
                 loading ? 'bg-red-500' : 'bg-amber-500'
@@ -261,6 +281,14 @@ function App() {
               <ExecutiveSummaryPanel
                 data={data?.executive_summary}
                 riskScore={riskScore}
+                liveReadings={{ icr: avgMidCapIcr }}
+                regime={calculateRegimeProbabilities({
+                  riskScore,
+                  spread10Y2Y: spread10Y2YValue,
+                  icr: avgMidCapIcr,
+                  vix: vixValue,
+                  unrate: unrateValue,
+                })}
               />
 
               <div className="flex flex-col gap-4">

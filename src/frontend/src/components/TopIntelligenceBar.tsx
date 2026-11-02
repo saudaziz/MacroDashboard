@@ -36,7 +36,7 @@ export const TopIntelligenceBar: React.FC<TopIntelligenceBarProps> = ({
   const materialMoves = getDailyMaterialMoves(data);
 
   return (
-    <div className="flex flex-col gap-2 rounded-xl border border-slate-800 bg-[#0d1420] p-3.5 shadow-lg">
+    <div id="regime-probability-gauge" className="flex flex-col gap-2 rounded-xl border border-slate-800 bg-[#0d1420] p-3.5 shadow-lg">
       {/* 1. Regime Probability Header & Numbers */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
